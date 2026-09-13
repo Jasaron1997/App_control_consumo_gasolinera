@@ -2,16 +2,7 @@ import { useEffect, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
 import { obtenerVehiculos } from '../api/vehiculosApi'
 import { setVistaOrigen } from '../api/httpClient'
-
-// El backend siempre manda la fecha como medianoche UTC (sin hora significativa);
-// usamos los componentes UTC en vez de toLocaleDateString para no correr el día
-// hacia atrás en husos horarios negativos (ej. Guatemala, UTC-6).
-function formatearFechaUtc(fechaIso) {
-  const fecha = new Date(fechaIso)
-  const dia = String(fecha.getUTCDate()).padStart(2, '0')
-  const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0')
-  return `${dia}/${mes}/${fecha.getUTCFullYear()}`
-}
+import { formatearFecha } from '../utils/fecha'
 
 export default function Historial() {
   const [vehiculos, setVehiculos] = useState([])
@@ -86,7 +77,7 @@ export default function Historial() {
           <tbody>
             {cargas.map((carga) => (
               <tr key={carga.id}>
-                <td>{formatearFechaUtc(carga.fecha)}</td>
+                <td>{formatearFecha(carga.fecha)}</td>
                 <td>{carga.vehiculoNombre}</td>
                 <td>{carga.tipoCombustibleNombre}</td>
                 <td>{carga.estacionServicioNombre ?? '—'}</td>

@@ -201,10 +201,13 @@ public class CargaService : ICargaService
             .ThenByDescending(c => c.Id)
             .FirstOrDefaultAsync();
 
+    // Al crear (idAExcluir=null) la carga nueva se considera la más reciente del día:
+    // ninguna carga existente en la misma Fecha debe contar como "posterior" a ella,
+    // por eso el fallback es int.MaxValue (ningún Id real lo supera) y no 0.
     private async Task<Carga?> ObtenerCargaPosteriorAsync(int vehiculoId, DateTime fecha, int? idAExcluir) =>
         await _dbContext.Cargas
             .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Id != idAExcluir &&
-                (c.Fecha > fecha || (c.Fecha == fecha && c.Id > (idAExcluir ?? 0))))
+                (c.Fecha > fecha || (c.Fecha == fecha && c.Id > (idAExcluir ?? int.MaxValue))))
             .OrderBy(c => c.Fecha)
             .ThenBy(c => c.Id)
             .FirstOrDefaultAsync();
