@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace GasolinaApi.Filters;
 
 /// <summary>
@@ -27,4 +29,11 @@ internal static class AuditoriaHelper
 
     public static bool EsCampoSensible(string nombrePropiedad) =>
         PalabrasClaveSensibles.Any(palabra => nombrePropiedad.Contains(palabra, StringComparison.OrdinalIgnoreCase));
+
+    // Tercer punto que necesita "no dejar que un fallo al auditar tumbe la respuesta al
+    // cliente, pero tampoco quedar mudo": junto con AuditoriaActionFilter y
+    // ValidacionModeloResponseFactory, se centraliza aquí para no repetir el mismo
+    // catch+log con mensajes ligeramente distintos en cada uno.
+    public static void RegistrarFalloDeAuditoria(ILogger logger, Exception excepcion, string contexto) =>
+        logger.LogError(excepcion, "No se pudo registrar en auditoría: {Contexto}.", contexto);
 }

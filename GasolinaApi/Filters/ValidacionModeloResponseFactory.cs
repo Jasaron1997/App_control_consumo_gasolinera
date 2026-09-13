@@ -60,12 +60,10 @@ public static class ValidacionModeloResponseFactory
         }
         catch (Exception excepcionAuditoria)
         {
-            // No dejar que una falla de auditoría bloquee la respuesta de validación al
-            // cliente, pero sí dejar rastro: sin esto, un fallo aquí queda completamente mudo.
-            contexto.HttpContext.RequestServices
+            var logger = contexto.HttpContext.RequestServices
                 .GetRequiredService<ILoggerFactory>()
-                .CreateLogger(nameof(ValidacionModeloResponseFactory))
-                .LogError(excepcionAuditoria, "No se pudo registrar en auditoría un rechazo por validación de modelo.");
+                .CreateLogger(nameof(ValidacionModeloResponseFactory));
+            AuditoriaHelper.RegistrarFalloDeAuditoria(logger, excepcionAuditoria, "rechazo por validación de modelo");
         }
     }
 

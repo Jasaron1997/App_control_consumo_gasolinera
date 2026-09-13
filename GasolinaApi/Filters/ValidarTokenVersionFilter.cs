@@ -98,9 +98,7 @@ public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
         }
         catch (Exception excepcionAuditoria)
         {
-            // No dejar que una falla de auditoría bloquee la respuesta 401 al cliente,
-            // pero sí dejar rastro: sin esto, un fallo aquí queda completamente mudo.
-            _logger.LogError(excepcionAuditoria, "No se pudo registrar el rechazo de TokenVersion en la auditoría.");
+            AuditoriaHelper.RegistrarFalloDeAuditoria(_logger, excepcionAuditoria, "rechazo de TokenVersion");
         }
     }
 }

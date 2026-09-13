@@ -64,10 +64,15 @@ export default function Vehiculos() {
     setError(null)
     try {
       await eliminarVehiculo(id)
-      await cargarVehiculos()
     } catch {
       setError('No se pudo eliminar el vehículo. Intenta de nuevo.')
+      return
     }
+
+    // El vehículo ya se eliminó; si esta recarga falla no es un error de
+    // eliminación, el usuario simplemente no verá la lista actualizada hasta
+    // la próxima recarga.
+    cargarVehiculos().catch(() => {})
   }
 
   return (

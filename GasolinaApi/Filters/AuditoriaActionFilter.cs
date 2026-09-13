@@ -41,8 +41,8 @@ public class AuditoriaActionFilter : IAsyncActionFilter
         }
         catch (Exception excepcionAuditoria)
         {
-            _logger.LogError(excepcionAuditoria, "No se pudo registrar la auditoría de {Controlador}.{Accion}",
-                descriptor.ControllerName, descriptor.ActionName);
+            AuditoriaHelper.RegistrarFalloDeAuditoria(_logger, excepcionAuditoria,
+                $"{descriptor.ControllerName}.{descriptor.ActionName}");
         }
     }
 

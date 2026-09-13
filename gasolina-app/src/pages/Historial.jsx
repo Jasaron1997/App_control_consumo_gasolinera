@@ -19,6 +19,9 @@ export default function Historial() {
     try {
       const datos = await obtenerCargas(vehiculoId ? { vehiculoId } : {})
       setCargas(datos)
+      setError(null)
+    } catch {
+      setError('No se pudo cargar el historial. Intenta de nuevo.')
     } finally {
       setCargando(false)
     }
@@ -34,10 +37,12 @@ export default function Historial() {
     setError(null)
     try {
       await eliminarCarga(id)
-      cargarHistorial()
     } catch {
       setError('No se pudo eliminar la carga. Intenta de nuevo.')
+      return
     }
+
+    cargarHistorial()
   }
 
   return (
