@@ -50,7 +50,11 @@ public class EstadisticaService : IEstadisticaService
 
     public async Task<List<HistoricoPuntoResponse>> ObtenerHistoricoAsync(int usuarioId, int? vehiculoId, int meses)
     {
-        var desde = DateTime.UtcNow.AddMonths(-meses);
+        // Fecha se guarda como fecha-calendario local sin offset (Kind Unspecified, ej.
+        // "2026-08-31T00:00:00"), igual que en FormularioCarga.fechaLocalHoy(). Comparar
+        // contra un corte basado en UtcNow desalinea el rango en las últimas horas de
+        // cada día en husos horarios negativos (ej. Guatemala), así que se usa DateTime.Now.
+        var desde = DateTime.Now.AddMonths(-meses);
 
         return await ObtenerCargasDelUsuario(usuarioId, vehiculoId)
             .Where(c => c.Fecha >= desde)
@@ -78,10 +82,12 @@ public class EstadisticaService : IEstadisticaService
         return consulta;
     }
 
+    // Mismo motivo que en ObtenerHistoricoAsync: Fecha es una fecha-calendario local sin
+    // offset, así que el mes "actual" se calcula con DateTime.Now, no UtcNow.
     private static (DateTime Inicio, DateTime InicioSiguiente) ObtenerRangoMesActual()
     {
-        var ahora = DateTime.UtcNow;
-        var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var ahora = DateTime.Now;
+        var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         var inicioMesSiguiente = inicioMes.AddMonths(1);
         return (inicioMes, inicioMesSiguiente);
     }

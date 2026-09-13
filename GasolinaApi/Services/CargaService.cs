@@ -50,8 +50,11 @@ public class CargaService : ICargaService
     public async Task<CargaResponse> CrearAsync(CrearCargaRequest request, int usuarioId)
     {
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
+        // Si el cliente no manda Fecha, el valor por defecto debe ser la fecha-calendario
+        // local de hoy (sin hora), igual que fechaLocalHoy() en el frontend — no el
+        // instante UTC, que en husos horarios negativos puede caer ya en el día siguiente.
         var (fecha, tipoCombustibleId, kilometrosRecorridos) =
-            await PrepararCambiosAsync(request, vehiculo, DateTime.UtcNow, idAExcluir: null);
+            await PrepararCambiosAsync(request, vehiculo, DateTime.Now.Date, idAExcluir: null);
 
         var carga = new Carga
         {

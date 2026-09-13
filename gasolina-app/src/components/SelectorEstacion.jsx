@@ -14,7 +14,13 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
     setTexto(estacionSeleccionada?.nombre ?? '')
   }, [estacionSeleccionada])
 
-  useEffect(() => () => clearTimeout(temporizadorRef.current), [])
+  useEffect(() => () => {
+    clearTimeout(temporizadorRef.current)
+    // Invalida cualquier búsqueda en vuelo: su respuesta, al llegar, ya no coincidirá
+    // con idSolicitudRef.current y el guard existente la descartará en vez de llamar
+    // setOpciones/setMostrarOpciones sobre un componente desmontado.
+    idSolicitudRef.current += 1
+  }, [])
 
   function manejarCambioTexto(valor) {
     setTexto(valor)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
 import { obtenerVehiculos } from '../api/vehiculosApi'
 import { formatearFecha } from '../utils/fecha'
@@ -9,21 +9,31 @@ export default function Historial() {
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
+  const idSolicitudRef = useRef(0)
 
   useEffect(() => {
     obtenerVehiculos().then(setVehiculos).catch(() => {})
   }, [])
 
+  // idSolicitudRef descarta una respuesta que llega fuera de orden (ej. el usuario
+  // cambia el filtro de vehículo dos veces rápido y la primera solicitud resuelve
+  // después de la segunda), igual que el patrón ya usado en SelectorEstacion.
   async function cargarHistorial() {
+    const idSolicitud = ++idSolicitudRef.current
     setCargando(true)
     try {
       const datos = await obtenerCargas(vehiculoId ? { vehiculoId } : {})
+      if (idSolicitud !== idSolicitudRef.current) return
       setCargas(datos)
       setError(null)
     } catch {
-      setError('No se pudo cargar el historial. Intenta de nuevo.')
+      if (idSolicitud === idSolicitudRef.current) {
+        setError('No se pudo cargar el historial. Intenta de nuevo.')
+      }
     } finally {
-      setCargando(false)
+      if (idSolicitud === idSolicitudRef.current) {
+        setCargando(false)
+      }
     }
   }
 
