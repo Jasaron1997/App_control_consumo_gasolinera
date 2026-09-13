@@ -3,7 +3,6 @@ import StatCard from '../components/StatCard'
 import GraficaTendencia from '../components/GraficaTendencia'
 import { obtenerResumen, obtenerHistorico } from '../api/estadisticasApi'
 import { obtenerVehiculos } from '../api/vehiculosApi'
-import { setVistaOrigen } from '../api/httpClient'
 
 export default function Dashboard() {
   const [vehiculos, setVehiculos] = useState([])
@@ -12,10 +11,6 @@ export default function Dashboard() {
   const [historico, setHistorico] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    setVistaOrigen('Dashboard')
-  }, [])
 
   useEffect(() => {
     obtenerVehiculos().then(setVehiculos).catch(() => {})

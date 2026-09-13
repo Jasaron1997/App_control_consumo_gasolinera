@@ -3,17 +3,12 @@ import FormularioCarga from '../components/FormularioCarga'
 import { crearCarga } from '../api/cargasApi'
 import { obtenerVehiculos } from '../api/vehiculosApi'
 import { obtenerTiposCombustible } from '../api/catalogosApi'
-import { setVistaOrigen } from '../api/httpClient'
 
 export default function RegistrarCarga() {
   const [vehiculos, setVehiculos] = useState([])
   const [tiposCombustible, setTiposCombustible] = useState([])
   const [guardando, setGuardando] = useState(false)
   const [mensajeExito, setMensajeExito] = useState(null)
-
-  useEffect(() => {
-    setVistaOrigen('RegistrarCarga')
-  }, [])
 
   useEffect(() => {
     obtenerVehiculos().then(setVehiculos).catch(() => {})

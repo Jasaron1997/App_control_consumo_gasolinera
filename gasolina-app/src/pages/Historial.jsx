@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
 import { obtenerVehiculos } from '../api/vehiculosApi'
-import { setVistaOrigen } from '../api/httpClient'
 import { formatearFecha } from '../utils/fecha'
 
 export default function Historial() {
@@ -9,10 +8,6 @@ export default function Historial() {
   const [vehiculoId, setVehiculoId] = useState('')
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
-
-  useEffect(() => {
-    setVistaOrigen('Historial')
-  }, [])
 
   useEffect(() => {
     obtenerVehiculos().then(setVehiculos).catch(() => {})

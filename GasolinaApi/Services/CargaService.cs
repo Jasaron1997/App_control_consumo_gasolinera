@@ -46,19 +46,8 @@ public class CargaService : ICargaService
     public async Task<CargaResponse> CrearAsync(CrearCargaRequest request, int usuarioId)
     {
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-
-        var fecha = request.Fecha ?? DateTime.UtcNow;
-        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
-
-        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
-
-        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: null);
-        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir: null);
-
-        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
-
-        var kilometrosRecorridos = request.KilometrosRecorridos
-            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+            await PrepararCambiosAsync(request, vehiculo, DateTime.UtcNow, idAExcluir: null);
 
         var carga = new Carga
         {
@@ -85,24 +74,15 @@ public class CargaService : ICargaService
     {
         var carga = await ObtenerCargaPropiaAsync(id, usuarioId);
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-
-        var fecha = request.Fecha ?? carga.Fecha;
-        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
-
-        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
-
-        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
-        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
-
-        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
+        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+            await PrepararCambiosAsync(request, vehiculo, carga.Fecha, idAExcluir: carga.Id);
 
         carga.VehiculoId = vehiculo.Id;
         carga.TipoCombustibleId = tipoCombustibleId;
         carga.EstacionServicioId = request.EstacionServicioId;
         carga.Fecha = fecha;
         carga.Kilometraje = request.Kilometraje;
-        carga.KilometrosRecorridos = request.KilometrosRecorridos
-            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+        carga.KilometrosRecorridos = kilometrosRecorridos;
         carga.Galones = request.Galones;
         carga.CostoTotal = request.CostoTotal;
         carga.UsuarioModificacion = usuarioId;
@@ -111,6 +91,28 @@ public class CargaService : ICargaService
         await _dbContext.SaveChangesAsync();
 
         return await ObtenerRespuestaAsync(carga.Id);
+    }
+
+    // Resuelve fecha/combustible, valida combustible+estación, y calcula (o valida)
+    // KilometrosRecorridos contra las cargas vecinas — compartido por Crear y Actualizar,
+    // que antes repetían esta misma secuencia casi palabra por palabra.
+    private async Task<(DateTime Fecha, int TipoCombustibleId, decimal? KilometrosRecorridos)> PrepararCambiosAsync(
+        CrearCargaRequest request, Vehiculo vehiculo, DateTime fechaPorDefecto, int? idAExcluir)
+    {
+        var fecha = request.Fecha ?? fechaPorDefecto;
+        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
+
+        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
+
+        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir);
+        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir);
+
+        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
+
+        var kilometrosRecorridos = request.KilometrosRecorridos
+            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+
+        return (fecha, tipoCombustibleId, kilometrosRecorridos);
     }
 
     private async Task ValidarCombustibleYEstacionAsync(int? tipoCombustibleIdSolicitado, int tipoCombustibleId, int? estacionServicioId)

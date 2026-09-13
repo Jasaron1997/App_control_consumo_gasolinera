@@ -10,10 +10,10 @@ namespace GasolinaApi.Filters;
 
 public class AuditoriaActionFilter : IAsyncActionFilter
 {
-    // Redacta por coincidencia parcial (no lista exacta) para que cubra automáticamente
-    // cualquier campo futuro cuyo nombre contenga "password" (ej. PasswordActual,
-    // PasswordNuevo, PasswordHash), sin depender de mantener actualizada una lista fija.
-    private static readonly string[] PalabrasClaveSensibles = { "password" };
+    private static readonly JsonSerializerOptions OpcionesSerializacion = new()
+    {
+        ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+    };
 
     private readonly AppDbContext _dbContext;
     private readonly ILogger<AuditoriaActionFilter> _logger;
@@ -49,50 +49,24 @@ public class AuditoriaActionFilter : IAsyncActionFilter
     private async Task RegistrarAsync(ActionExecutingContext context, ActionExecutedContext resultContext,
         ControllerActionDescriptor descriptor)
     {
-        var usuarioId = ObtenerUsuarioIdOpcional(context.HttpContext);
-        var vistaOrigen = context.HttpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault();
-        var tipoAccion = InferirTipoAccion(context.HttpContext.Request.Method);
-
         var log = new LogAuditoria
         {
-            UsuarioId = usuarioId,
+            UsuarioId = context.HttpContext.User.ObtenerUsuarioIdOpcional(),
             Fecha = DateTime.UtcNow,
-            TipoAccion = tipoAccion,
+            TipoAccion = AuditoriaHelper.InferirTipoAccion(context.HttpContext.Request.Method),
             Entidad = descriptor.ControllerName,
             IdRegistro = ObtenerIdRegistro(context, resultContext),
             Parametros = SerializarParametros(context.ActionArguments),
             Controlador = descriptor.ControllerName,
             AccionMetodo = descriptor.ActionName,
-            VistaOrigen = vistaOrigen,
+            VistaOrigen = context.HttpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault(),
             Exitoso = resultContext.Exception is null,
-            MensajeError = Truncar(resultContext.Exception?.Message, 500)
+            MensajeError = AuditoriaHelper.Truncar(resultContext.Exception?.Message)
         };
 
         _dbContext.LogsAuditoria.Add(log);
         await _dbContext.SaveChangesAsync();
     }
-
-    private static int? ObtenerUsuarioIdOpcional(HttpContext httpContext)
-    {
-        if (httpContext.User.Identity?.IsAuthenticated != true)
-        {
-            return null;
-        }
-
-        var valor = httpContext.User.FindFirst(ClaimsGasolina.UsuarioId)?.Value;
-        return int.TryParse(valor, out var usuarioId) ? usuarioId : null;
-    }
-
-    private static string? Truncar(string? valor, int longitudMaxima) =>
-        valor is null || valor.Length <= longitudMaxima ? valor : valor[..longitudMaxima];
-
-    private static string InferirTipoAccion(string metodoHttp) => metodoHttp.ToUpperInvariant() switch
-    {
-        "POST" => "INSERT",
-        "PUT" or "PATCH" => "UPDATE",
-        "DELETE" => "DELETE",
-        _ => "SELECT"
-    };
 
     private static string? ObtenerIdRegistro(ActionExecutingContext context, ActionExecutedContext resultContext)
     {
@@ -118,17 +92,12 @@ public class AuditoriaActionFilter : IAsyncActionFilter
             return null;
         }
 
-        var opciones = new JsonSerializerOptions
-        {
-            ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
-        };
-
         var nodo = new JsonObject();
         foreach (var (clave, valor) in argumentos)
         {
             try
             {
-                nodo[clave] = valor is null ? null : JsonSerializer.SerializeToNode(valor, valor.GetType(), opciones);
+                nodo[clave] = valor is null ? null : JsonSerializer.SerializeToNode(valor, valor.GetType(), OpcionesSerializacion);
             }
             catch
             {
@@ -148,7 +117,7 @@ public class AuditoriaActionFilter : IAsyncActionFilter
             case JsonObject objeto:
                 foreach (var propiedad in objeto.ToList())
                 {
-                    if (EsCampoSensible(propiedad.Key))
+                    if (AuditoriaHelper.EsCampoSensible(propiedad.Key))
                     {
                         objeto[propiedad.Key] = "***";
                     }
@@ -166,7 +135,4 @@ public class AuditoriaActionFilter : IAsyncActionFilter
                 break;
         }
     }
-
-    private static bool EsCampoSensible(string nombrePropiedad) =>
-        PalabrasClaveSensibles.Any(palabra => nombrePropiedad.Contains(palabra, StringComparison.OrdinalIgnoreCase));
 }
