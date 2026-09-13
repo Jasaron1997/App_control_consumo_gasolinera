@@ -1,0 +1,16 @@
+# .NET
+GasolinaApi/bin/
+GasolinaApi/obj/
+*.user
+
+# Node / Vite
+gasolina-app/node_modules/
+gasolina-app/dist/
+gasolina-app/dist-ssr/
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
