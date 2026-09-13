@@ -33,6 +33,9 @@ public class AuthController : ControllerBase
     {
         var usuarioId = User.ObtenerUsuarioId();
         await _authService.CambiarPasswordAsync(usuarioId, request);
-        return Ok(RespuestaApi<object>.Ok(new { }, "Contraseña actualizada. Tus demás sesiones fueron cerradas."));
+        // TokenVersion++ invalida TODOS los tokens ya emitidos, incluido el que se usó
+        // para llamar a este mismo endpoint — no hay "estas sesiones sí, esta no".
+        return Ok(RespuestaApi<object>.Ok(new { },
+            "Contraseña actualizada. Todas tus sesiones, incluida esta, quedaron cerradas: vuelve a iniciar sesión."));
     }
 }

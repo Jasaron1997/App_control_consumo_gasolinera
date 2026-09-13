@@ -8,6 +8,7 @@ export default function Historial() {
   const [vehiculoId, setVehiculoId] = useState('')
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     obtenerVehiculos().then(setVehiculos).catch(() => {})
@@ -30,8 +31,13 @@ export default function Historial() {
 
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar esta carga?')) return
-    await eliminarCarga(id)
-    cargarHistorial()
+    setError(null)
+    try {
+      await eliminarCarga(id)
+      cargarHistorial()
+    } catch {
+      setError('No se pudo eliminar la carga. Intenta de nuevo.')
+    }
   }
 
   return (
@@ -48,6 +54,8 @@ export default function Historial() {
           ))}
         </select>
       </div>
+
+      {error && <p className="mensaje-error">{error}</p>}
 
       {cargando ? (
         <p>Cargando...</p>

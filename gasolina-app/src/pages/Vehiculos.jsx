@@ -61,8 +61,13 @@ export default function Vehiculos() {
 
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar este vehículo? El historial de cargas se conserva.')) return
-    await eliminarVehiculo(id)
-    await cargarVehiculos()
+    setError(null)
+    try {
+      await eliminarVehiculo(id)
+      await cargarVehiculos()
+    } catch {
+      setError('No se pudo eliminar el vehículo. Intenta de nuevo.')
+    }
   }
 
   return (

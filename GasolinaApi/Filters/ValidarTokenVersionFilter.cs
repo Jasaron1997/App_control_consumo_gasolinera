@@ -18,10 +18,12 @@ namespace GasolinaApi.Filters;
 public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<ValidarTokenVersionFilter> _logger;
 
-    public ValidarTokenVersionFilter(AppDbContext dbContext)
+    public ValidarTokenVersionFilter(AppDbContext dbContext, ILogger<ValidarTokenVersionFilter> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task OnAuthorizationAsync(AuthorizationFilterContext contexto)
@@ -94,9 +96,11 @@ public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
 
             await _dbContext.SaveChangesAsync();
         }
-        catch
+        catch (Exception excepcionAuditoria)
         {
-            // No dejar que una falla de auditoría bloquee la respuesta 401 al cliente.
+            // No dejar que una falla de auditoría bloquee la respuesta 401 al cliente,
+            // pero sí dejar rastro: sin esto, un fallo aquí queda completamente mudo.
+            _logger.LogError(excepcionAuditoria, "No se pudo registrar el rechazo de TokenVersion en la auditoría.");
         }
     }
 }

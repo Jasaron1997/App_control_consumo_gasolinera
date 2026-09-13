@@ -1,11 +1,22 @@
 import { useState } from 'react'
 import SelectorEstacion from './SelectorEstacion'
 
+// new Date().toISOString() da la fecha en UTC: entre las 18:00 y medianoche hora
+// de Guatemala (UTC-6) ya sería "mañana" en UTC. Se arma el string con los
+// componentes de fecha LOCALES para que el valor por defecto sea el día real.
+function fechaLocalHoy() {
+  const ahora = new Date()
+  const anio = ahora.getFullYear()
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0')
+  const dia = String(ahora.getDate()).padStart(2, '0')
+  return `${anio}-${mes}-${dia}`
+}
+
 function valoresIniciales() {
   return {
     vehiculoId: '',
     tipoCombustibleId: '',
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: fechaLocalHoy(),
     kilometraje: '',
     kilometrosRecorridos: '',
     galones: '',

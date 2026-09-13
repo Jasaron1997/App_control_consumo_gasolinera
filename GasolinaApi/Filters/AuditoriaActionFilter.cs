@@ -49,6 +49,15 @@ public class AuditoriaActionFilter : IAsyncActionFilter
     private async Task RegistrarAsync(ActionExecutingContext context, ActionExecutedContext resultContext,
         ControllerActionDescriptor descriptor)
     {
+        // Si la acción falló después de rastrear cambios en este mismo DbContext (ej.
+        // CrearAsync agregó una Carga y luego SaveChangesAsync explotó), hay que
+        // descartarlos antes de guardar el log: si no, el intento de guardar la
+        // auditoría podría persistir de rebote esa mutación a medio hacer.
+        if (resultContext.Exception is not null)
+        {
+            _dbContext.ChangeTracker.Clear();
+        }
+
         var log = new LogAuditoria
         {
             UsuarioId = context.HttpContext.User.ObtenerUsuarioIdOpcional(),
