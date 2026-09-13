@@ -10,10 +10,10 @@ namespace GasolinaApi.Filters;
 
 public class AuditoriaActionFilter : IAsyncActionFilter
 {
-    private static readonly HashSet<string> CamposSensibles = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Password", "PasswordHash"
-    };
+    // Redacta por coincidencia parcial (no lista exacta) para que cubra automáticamente
+    // cualquier campo futuro cuyo nombre contenga "password" (ej. PasswordActual,
+    // PasswordNuevo, PasswordHash), sin depender de mantener actualizada una lista fija.
+    private static readonly string[] PalabrasClaveSensibles = { "password" };
 
     private readonly AppDbContext _dbContext;
     private readonly ILogger<AuditoriaActionFilter> _logger;
@@ -148,7 +148,7 @@ public class AuditoriaActionFilter : IAsyncActionFilter
             case JsonObject objeto:
                 foreach (var propiedad in objeto.ToList())
                 {
-                    if (CamposSensibles.Contains(propiedad.Key))
+                    if (EsCampoSensible(propiedad.Key))
                     {
                         objeto[propiedad.Key] = "***";
                     }
@@ -166,4 +166,7 @@ public class AuditoriaActionFilter : IAsyncActionFilter
                 break;
         }
     }
+
+    private static bool EsCampoSensible(string nombrePropiedad) =>
+        PalabrasClaveSensibles.Any(palabra => nombrePropiedad.Contains(palabra, StringComparison.OrdinalIgnoreCase));
 }
