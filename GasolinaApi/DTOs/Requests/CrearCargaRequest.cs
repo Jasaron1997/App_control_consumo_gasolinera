@@ -5,6 +5,7 @@ namespace GasolinaApi.DTOs.Requests;
 public class CrearCargaRequest
 {
     [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "Debe indicar un vehículo.")]
     public int VehiculoId { get; set; }
 
     // Opcional: si no viene, el Service la completa con el combustible por defecto del vehículo.

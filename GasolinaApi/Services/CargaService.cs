@@ -35,7 +35,10 @@ public class CargaService : ICargaService
 
         if (hasta is not null)
         {
-            consulta = consulta.Where(c => c.Fecha <= hasta);
+            // Intervalo semiabierto: "hasta" debe incluir todo ese día, no solo hasta
+            // su medianoche — de lo contrario una carga con hora distinta de 00:00
+            // quedaría excluida aunque su fecha coincida con el límite pedido.
+            consulta = consulta.Where(c => c.Fecha < hasta.Value.Date.AddDays(1));
         }
 
         return await consulta

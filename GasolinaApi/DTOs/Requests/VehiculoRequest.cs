@@ -5,9 +5,11 @@ namespace GasolinaApi.DTOs.Requests;
 public class VehiculoRequest
 {
     [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "Debe indicar un tipo de vehículo.")]
     public int TipoVehiculoId { get; set; }
 
     [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "Debe indicar un tipo de combustible.")]
     public int TipoCombustibleId { get; set; }
 
     [Required, MaxLength(50)]

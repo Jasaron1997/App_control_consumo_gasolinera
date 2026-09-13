@@ -48,8 +48,11 @@ public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
             return;
         }
 
+        // Filtra también por Estado: si el usuario fue desactivado, sus JWT ya
+        // emitidos deben dejar de servir de inmediato, igual que en el resto de
+        // la app donde ESTADO=0 significa "ya no existe" para efectos prácticos.
         var tokenVersionActual = await _dbContext.Usuarios
-            .Where(u => u.Id == usuarioId)
+            .Where(u => u.Id == usuarioId && u.Estado)
             .Select(u => (int?)u.TokenVersion)
             .FirstOrDefaultAsync();
 
