@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import SelectorEstacion from './SelectorEstacion'
 
-const valoresIniciales = {
-  vehiculoId: '',
-  tipoCombustibleId: '',
-  fecha: new Date().toISOString().slice(0, 10),
-  kilometraje: '',
-  kilometrosRecorridos: '',
-  galones: '',
-  costoTotal: ''
+function valoresIniciales() {
+  return {
+    vehiculoId: '',
+    tipoCombustibleId: '',
+    fecha: new Date().toISOString().slice(0, 10),
+    kilometraje: '',
+    kilometrosRecorridos: '',
+    galones: '',
+    costoTotal: ''
+  }
 }
 
 export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar, guardando }) {
@@ -46,7 +48,7 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
         costoTotal: Number(valores.costoTotal)
       })
 
-      setValores(valoresIniciales)
+      setValores(valoresIniciales())
       setEstacionSeleccionada(null)
     } catch (error) {
       setError(error.response?.data?.mensaje ?? 'No se pudo registrar la carga.')

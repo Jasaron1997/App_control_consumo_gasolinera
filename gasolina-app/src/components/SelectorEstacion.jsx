@@ -13,6 +13,8 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
     setTexto(estacionSeleccionada?.nombre ?? '')
   }, [estacionSeleccionada])
 
+  useEffect(() => () => clearTimeout(temporizadorRef.current), [])
+
   function manejarCambioTexto(valor) {
     setTexto(valor)
     onSeleccionar(null)

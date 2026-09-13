@@ -20,6 +20,7 @@ public class CrearCargaRequest
     public decimal Kilometraje { get; set; }
 
     // Opcional: si no viene, el Service la calcula restando el kilometraje de la carga anterior.
+    [Range(0, double.MaxValue, ErrorMessage = "Los kilómetros recorridos no pueden ser negativos.")]
     public decimal? KilometrosRecorridos { get; set; }
 
     [Required]

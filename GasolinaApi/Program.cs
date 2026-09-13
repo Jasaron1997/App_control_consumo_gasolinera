@@ -68,6 +68,12 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<AuditoriaActionFilter>();
     options.Filters.Add<ValidarTokenVersionFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    // El 400 automático de [ApiController] corre antes que cualquier ActionFilter,
+    // así que reemplaza la respuesta para usar el sobre RespuestaApi<T> y auditar el rechazo.
+    options.InvalidModelStateResponseFactory = ValidacionModeloResponseFactory.Crear;
 });
 
 builder.Services.AddEndpointsApiExplorer();

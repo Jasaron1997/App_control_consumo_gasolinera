@@ -27,6 +27,7 @@ public class VehiculoService : IVehiculoService
     public async Task<VehiculoResponse> CrearAsync(VehiculoRequest request, int usuarioId)
     {
         await ValidarCatalogosAsync(request);
+        await ValidarPlacaDisponibleAsync(request.Placa, idAExcluir: null);
 
         var vehiculo = new Vehiculo
         {
@@ -52,6 +53,7 @@ public class VehiculoService : IVehiculoService
         var vehiculo = await ObtenerPropioAsync(id, usuarioId);
 
         await ValidarCatalogosAsync(request);
+        await ValidarPlacaDisponibleAsync(request.Placa, idAExcluir: vehiculo.Id);
 
         vehiculo.TipoVehiculoId = request.TipoVehiculoId;
         vehiculo.TipoCombustibleId = request.TipoCombustibleId;
@@ -103,6 +105,22 @@ public class VehiculoService : IVehiculoService
         if (!tipoCombustibleExiste)
         {
             throw new ValidacionException($"No se encontró el tipo de combustible con id {request.TipoCombustibleId}.");
+        }
+    }
+
+    private async Task ValidarPlacaDisponibleAsync(string? placa, int? idAExcluir)
+    {
+        if (string.IsNullOrWhiteSpace(placa))
+        {
+            return;
+        }
+
+        var placaEnUso = await _dbContext.Vehiculos
+            .AnyAsync(v => v.Estado && v.Placa == placa && v.Id != idAExcluir);
+
+        if (placaEnUso)
+        {
+            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
         }
     }
 
