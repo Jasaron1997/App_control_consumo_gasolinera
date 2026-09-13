@@ -16,5 +16,6 @@ public class VehiculoRequest
     [MaxLength(20)]
     public string? Placa { get; set; }
 
+    [Range(0.01, double.MaxValue, ErrorMessage = "La capacidad del tanque debe ser mayor a cero.")]
     public decimal? TanqueCapacidadGalones { get; set; }
 }

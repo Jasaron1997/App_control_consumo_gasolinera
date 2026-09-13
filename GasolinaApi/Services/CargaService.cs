@@ -50,35 +50,12 @@ public class CargaService : ICargaService
         var fecha = request.Fecha ?? DateTime.UtcNow;
         var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
 
-        if (request.TipoCombustibleId is not null)
-        {
-            var tipoCombustibleExiste = await _dbContext.TiposCombustible
-                .AnyAsync(t => t.Id == tipoCombustibleId && t.Estado);
-
-            if (!tipoCombustibleExiste)
-            {
-                throw new ValidacionException($"No se encontró el tipo de combustible con id {tipoCombustibleId}.");
-            }
-        }
-
-        if (request.EstacionServicioId is not null)
-        {
-            var estacionExiste = await _dbContext.EstacionesServicio
-                .AnyAsync(e => e.Id == request.EstacionServicioId && e.Estado);
-
-            if (!estacionExiste)
-            {
-                throw new ValidacionException($"No se encontró la estación de servicio con id {request.EstacionServicioId}.");
-            }
-        }
+        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
 
         var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: null);
+        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir: null);
 
-        if (cargaAnterior is not null && request.Kilometraje < cargaAnterior.Kilometraje)
-        {
-            throw new ValidacionException(
-                $"El kilometraje ({request.Kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
-        }
+        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
 
         var kilometrosRecorridos = request.KilometrosRecorridos
             ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
@@ -112,13 +89,12 @@ public class CargaService : ICargaService
         var fecha = request.Fecha ?? carga.Fecha;
         var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
 
-        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
+        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
 
-        if (cargaAnterior is not null && request.Kilometraje < cargaAnterior.Kilometraje)
-        {
-            throw new ValidacionException(
-                $"El kilometraje ({request.Kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
-        }
+        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
+        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
+
+        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
 
         carga.VehiculoId = vehiculo.Id;
         carga.TipoCombustibleId = tipoCombustibleId;
@@ -135,6 +111,46 @@ public class CargaService : ICargaService
         await _dbContext.SaveChangesAsync();
 
         return await ObtenerRespuestaAsync(carga.Id);
+    }
+
+    private async Task ValidarCombustibleYEstacionAsync(int? tipoCombustibleIdSolicitado, int tipoCombustibleId, int? estacionServicioId)
+    {
+        if (tipoCombustibleIdSolicitado is not null)
+        {
+            var tipoCombustibleExiste = await _dbContext.TiposCombustible
+                .AnyAsync(t => t.Id == tipoCombustibleId && t.Estado);
+
+            if (!tipoCombustibleExiste)
+            {
+                throw new ValidacionException($"No se encontró el tipo de combustible con id {tipoCombustibleId}.");
+            }
+        }
+
+        if (estacionServicioId is not null)
+        {
+            var estacionExiste = await _dbContext.EstacionesServicio
+                .AnyAsync(e => e.Id == estacionServicioId && e.Estado);
+
+            if (!estacionExiste)
+            {
+                throw new ValidacionException($"No se encontró la estación de servicio con id {estacionServicioId}.");
+            }
+        }
+    }
+
+    private static void ValidarSecuenciaKilometraje(decimal kilometraje, Carga? cargaAnterior, Carga? cargaPosterior)
+    {
+        if (cargaAnterior is not null && kilometraje < cargaAnterior.Kilometraje)
+        {
+            throw new ValidacionException(
+                $"El kilometraje ({kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
+        }
+
+        if (cargaPosterior is not null && kilometraje > cargaPosterior.Kilometraje)
+        {
+            throw new ValidacionException(
+                $"El kilometraje ({kilometraje}) no puede ser mayor al de una carga posterior ya registrada ({cargaPosterior.Kilometraje}).");
+        }
     }
 
     public async Task EliminarAsync(int id, int usuarioId)
@@ -175,10 +191,22 @@ public class CargaService : ICargaService
         return carga;
     }
 
+    // Desempata por Id cuando dos cargas caen en la misma Fecha (ej. el formulario solo
+    // envía fecha sin hora, así que varias cargas del mismo día quedan a las 00:00:00Z).
     private async Task<Carga?> ObtenerCargaAnteriorAsync(int vehiculoId, DateTime fecha, int? idAExcluir) =>
         await _dbContext.Cargas
-            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Fecha < fecha && c.Id != idAExcluir)
+            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Id != idAExcluir &&
+                (c.Fecha < fecha || (c.Fecha == fecha && c.Id < (idAExcluir ?? int.MaxValue))))
             .OrderByDescending(c => c.Fecha)
+            .ThenByDescending(c => c.Id)
+            .FirstOrDefaultAsync();
+
+    private async Task<Carga?> ObtenerCargaPosteriorAsync(int vehiculoId, DateTime fecha, int? idAExcluir) =>
+        await _dbContext.Cargas
+            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Id != idAExcluir &&
+                (c.Fecha > fecha || (c.Fecha == fecha && c.Id > (idAExcluir ?? 0))))
+            .OrderBy(c => c.Fecha)
+            .ThenBy(c => c.Id)
             .FirstOrDefaultAsync();
 
     private async Task<CargaResponse> ObtenerRespuestaAsync(int id) =>

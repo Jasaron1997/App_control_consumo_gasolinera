@@ -38,4 +38,23 @@ public class AuthService : IAuthService
             ExpiraEn = expiraEn
         };
     }
+
+    public async Task CambiarPasswordAsync(int usuarioId, CambiarPasswordRequest request)
+    {
+        var usuario = await _dbContext.Usuarios
+            .FirstOrDefaultAsync(u => u.Id == usuarioId && u.Estado);
+
+        if (usuario is null || !BCrypt.Net.BCrypt.Verify(request.PasswordActual, usuario.PasswordHash))
+        {
+            throw new ValidacionException("La contraseña actual es incorrecta.");
+        }
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.PasswordNuevo);
+        // Incrementar TokenVersion invalida todos los JWT emitidos antes de este cambio.
+        usuario.TokenVersion++;
+        usuario.UsuarioModificacion = usuarioId;
+        usuario.FechaModificacion = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+    }
 }

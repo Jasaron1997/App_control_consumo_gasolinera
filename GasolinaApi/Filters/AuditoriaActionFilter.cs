@@ -65,7 +65,7 @@ public class AuditoriaActionFilter : IAsyncActionFilter
             AccionMetodo = descriptor.ActionName,
             VistaOrigen = vistaOrigen,
             Exitoso = resultContext.Exception is null,
-            MensajeError = resultContext.Exception?.Message
+            MensajeError = Truncar(resultContext.Exception?.Message, 500)
         };
 
         _dbContext.LogsAuditoria.Add(log);
@@ -82,6 +82,9 @@ public class AuditoriaActionFilter : IAsyncActionFilter
         var valor = httpContext.User.FindFirst(ClaimsGasolina.UsuarioId)?.Value;
         return int.TryParse(valor, out var usuarioId) ? usuarioId : null;
     }
+
+    private static string? Truncar(string? valor, int longitudMaxima) =>
+        valor is null || valor.Length <= longitudMaxima ? valor : valor[..longitudMaxima];
 
     private static string InferirTipoAccion(string metodoHttp) => metodoHttp.ToUpperInvariant() switch
     {

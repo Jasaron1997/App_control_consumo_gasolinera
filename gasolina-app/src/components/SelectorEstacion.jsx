@@ -7,6 +7,7 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
   const [mostrarOpciones, setMostrarOpciones] = useState(false)
   const [creando, setCreando] = useState(false)
   const temporizadorRef = useRef(null)
+  const idSolicitudRef = useRef(0)
 
   useEffect(() => {
     setTexto(estacionSeleccionada?.nombre ?? '')
@@ -24,12 +25,16 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
     }
 
     temporizadorRef.current = setTimeout(async () => {
+      const idSolicitud = ++idSolicitudRef.current
+
       try {
         const resultados = await buscarEstacionesServicio(valor)
+        // Descarta la respuesta si ya salió una búsqueda más nueva mientras esta estaba en vuelo.
+        if (idSolicitud !== idSolicitudRef.current) return
         setOpciones(resultados)
         setMostrarOpciones(true)
       } catch {
-        setOpciones([])
+        if (idSolicitud === idSolicitudRef.current) setOpciones([])
       }
     }, 300)
   }
