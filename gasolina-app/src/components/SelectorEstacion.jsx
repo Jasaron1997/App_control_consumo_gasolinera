@@ -6,6 +6,7 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
   const [opciones, setOpciones] = useState([])
   const [mostrarOpciones, setMostrarOpciones] = useState(false)
   const [creando, setCreando] = useState(false)
+  const [errorCreacion, setErrorCreacion] = useState(null)
   const temporizadorRef = useRef(null)
   const idSolicitudRef = useRef(0)
 
@@ -49,9 +50,12 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
 
   async function crearNuevaEstacion() {
     setCreando(true)
+    setErrorCreacion(null)
     try {
       const nuevaEstacion = await crearEstacionServicio({ nombre: texto })
       seleccionarOpcion(nuevaEstacion)
+    } catch {
+      setErrorCreacion('No se pudo crear la estación. Intenta de nuevo.')
     } finally {
       setCreando(false)
     }
@@ -70,6 +74,8 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
           onBlur={() => setTimeout(() => setMostrarOpciones(false), 150)}
         />
       </label>
+
+      {errorCreacion && <p className="mensaje-error">{errorCreacion}</p>}
 
       {mostrarOpciones && (
         <ul className="selector-estacion__opciones">

@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import { setVistaOrigen } from '../api/httpClient'
@@ -15,9 +14,13 @@ const VISTAS_POR_RUTA = {
 export default function Layout() {
   const location = useLocation()
 
-  useEffect(() => {
-    setVistaOrigen(VISTAS_POR_RUTA[location.pathname] ?? location.pathname)
-  }, [location.pathname])
+  // Se llama directo en el render (no en un useEffect): React ejecuta los efectos
+  // de los hijos (ej. el fetch de datos de cada página) antes que los del padre,
+  // así que un useEffect aquí fijaría X-Vista-Origen DESPUÉS de que la página ya
+  // hubiera disparado su primera petición. setVistaOrigen solo reasigna una
+  // variable de módulo — no toca el DOM ni nada que dependa del ciclo de commit —
+  // así que es seguro llamarlo en el cuerpo del componente.
+  setVistaOrigen(VISTAS_POR_RUTA[location.pathname] ?? location.pathname)
 
   return (
     <div className="layout">

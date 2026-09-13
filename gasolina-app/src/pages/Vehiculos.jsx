@@ -47,12 +47,16 @@ export default function Vehiculos() {
         tanqueCapacidadGalones: valores.tanqueCapacidadGalones ? Number(valores.tanqueCapacidadGalones) : null
       })
       setValores(valoresIniciales)
-      await cargarVehiculos()
     } catch (error) {
       setError(error.response?.data?.mensaje ?? 'No se pudo guardar el vehículo.')
-    } finally {
       setGuardando(false)
+      return
     }
+
+    setGuardando(false)
+    // El vehículo ya se guardó; si esta recarga falla no es un error de guardado,
+    // el usuario simplemente no lo verá listado hasta la próxima recarga.
+    cargarVehiculos().catch(() => {})
   }
 
   async function manejarEliminar(id) {

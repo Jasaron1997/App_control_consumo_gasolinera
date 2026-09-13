@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs.Requests;
 using GasolinaApi.DTOs.Responses;
@@ -21,7 +22,7 @@ public class VehiculoService : IVehiculoService
         await _dbContext.Vehiculos
             .Where(v => v.Estado && v.UsuarioPropietarioId == usuarioId)
             .OrderBy(v => v.Nombre)
-            .Select(v => ProyectarRespuesta(v))
+            .Select(ProyeccionRespuesta)
             .ToListAsync();
 
     public async Task<VehiculoResponse> CrearAsync(VehiculoRequest request, int usuarioId)
@@ -127,10 +128,14 @@ public class VehiculoService : IVehiculoService
     private async Task<VehiculoResponse> ObtenerRespuestaAsync(int id) =>
         await _dbContext.Vehiculos
             .Where(v => v.Id == id)
-            .Select(v => ProyectarRespuesta(v))
+            .Select(ProyeccionRespuesta)
             .FirstAsync();
 
-    private static VehiculoResponse ProyectarRespuesta(Vehiculo v) => new()
+    // Debe ser una Expression<Func<>> (no un método normal): así EF Core la traduce
+    // a SQL con los JOIN necesarios. Si esto fuera una llamada a método, EF Core no
+    // podría traducirla, traería el Vehiculo sin sus relaciones, y "v.TipoVehiculo!.Nombre"
+    // reventaría en tiempo de ejecución con NullReferenceException en cada request.
+    private static readonly Expression<Func<Vehiculo, VehiculoResponse>> ProyeccionRespuesta = v => new VehiculoResponse
     {
         Id = v.Id,
         Nombre = v.Nombre,

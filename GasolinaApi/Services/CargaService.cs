@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs.Requests;
 using GasolinaApi.DTOs.Responses;
@@ -39,7 +40,7 @@ public class CargaService : ICargaService
 
         return await consulta
             .OrderByDescending(c => c.Fecha)
-            .Select(c => ProyectarRespuesta(c))
+            .Select(ProyeccionRespuesta)
             .ToListAsync();
     }
 
@@ -217,10 +218,14 @@ public class CargaService : ICargaService
     private async Task<CargaResponse> ObtenerRespuestaAsync(int id) =>
         await _dbContext.Cargas
             .Where(c => c.Id == id)
-            .Select(c => ProyectarRespuesta(c))
+            .Select(ProyeccionRespuesta)
             .FirstAsync();
 
-    private static CargaResponse ProyectarRespuesta(Carga c) => new()
+    // Debe ser una Expression<Func<>> (no un método normal): así EF Core la traduce
+    // a SQL con los JOIN necesarios. Si esto fuera una llamada a método, EF Core no
+    // podría traducirla, traería el Carga sin sus relaciones, y "c.Vehiculo!.Nombre"
+    // reventaría en tiempo de ejecución con NullReferenceException en cada request.
+    private static readonly Expression<Func<Carga, CargaResponse>> ProyeccionRespuesta = c => new CargaResponse
     {
         Id = c.Id,
         VehiculoId = c.VehiculoId,
