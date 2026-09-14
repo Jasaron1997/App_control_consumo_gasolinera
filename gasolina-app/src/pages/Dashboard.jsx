@@ -37,8 +37,8 @@ export default function Dashboard() {
   }, [vehiculoId])
 
   return (
-    <div className="pagina-dashboard">
-      <div className="pagina-dashboard__encabezado">
+    <div>
+      <div className="flex justify-between items-center flex-wrap gap-3 mb-4">
         <h1>Dashboard</h1>
 
         <SelectorVehiculo value={vehiculoId} onChange={setVehiculoId} />
@@ -47,7 +47,7 @@ export default function Dashboard() {
       {error && <p className="mensaje-error">{error}</p>}
 
       {!cargando && resumen && (
-        <div className="tarjetas-resumen">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 mb-6">
           <StatCard
             titulo="Rendimiento promedio"
             valor={resumen.rendimientoPromedio?.toFixed(2) ?? '—'}

@@ -105,48 +105,6 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.pagina-dashboard__encabezado {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.tarjetas-resumen {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: 10px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.stat-card__titulo {
-  font-size: 0.85rem;
-  color: var(--color-texto-sutil);
-}
-
-.stat-card__valor {
-  font-size: 1.6rem;
-  font-weight: 600;
-}
-
-.stat-card__unidad {
-  font-size: 0.9rem;
-  color: var(--color-texto-sutil);
-  font-weight: 400;
-}
-
 .grafica-tendencia {
   background: var(--color-superficie);
   border: 1px solid var(--color-borde);
