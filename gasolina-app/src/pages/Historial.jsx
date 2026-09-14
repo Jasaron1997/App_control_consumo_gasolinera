@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
 import SelectorVehiculo from '../components/SelectorVehiculo'
 import { formatearFecha } from '../utils/fecha'
@@ -13,7 +13,7 @@ export default function Historial() {
   // idSolicitudRef descarta una respuesta que llega fuera de orden (ej. el usuario
   // cambia el filtro de vehículo dos veces rápido y la primera solicitud resuelve
   // después de la segunda), igual que el patrón ya usado en SelectorEstacion.
-  async function cargarHistorial() {
+  const cargarHistorial = useCallback(async () => {
     const idSolicitud = ++idSolicitudRef.current
     setCargando(true)
     try {
@@ -30,12 +30,11 @@ export default function Historial() {
         setCargando(false)
       }
     }
-  }
+  }, [vehiculoId])
 
   useEffect(() => {
     cargarHistorial()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehiculoId])
+  }, [cargarHistorial])
 
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar esta carga?')) return

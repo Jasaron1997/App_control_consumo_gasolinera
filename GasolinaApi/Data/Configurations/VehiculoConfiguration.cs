@@ -32,6 +32,7 @@ public class VehiculoConfiguration : EntidadBaseConfiguration<Vehiculo>
         builder.HasIndex(e => e.TipoVehiculoId).HasDatabaseName("IX_VEHICULO_TIPO");
         builder.HasIndex(e => e.TipoCombustibleId).HasDatabaseName("IX_VEHICULO_COMBUSTIBLE");
         builder.HasIndex(e => e.UsuarioPropietarioId).HasDatabaseName("IX_VEHICULO_PROPIETARIO");
+        builder.HasIndex(e => e.Id).HasDatabaseName("IX_VEHICULO_ACTIVOS").HasFilter("[ESTADO] = 1");
 
         builder.HasIndex(e => e.Placa)
             .IsUnique()

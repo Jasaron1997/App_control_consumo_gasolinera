@@ -43,5 +43,6 @@ public class CargaConfiguration : EntidadBaseConfiguration<Carga>
         builder.HasIndex(e => e.TipoCombustibleId).HasDatabaseName("IX_CARGA_COMBUSTIBLE");
         builder.HasIndex(e => e.EstacionServicioId).HasDatabaseName("IX_CARGA_ESTACION");
         builder.HasIndex(e => e.Fecha).HasDatabaseName("IX_CARGA_FECHA");
+        builder.HasIndex(e => e.Id).HasDatabaseName("IX_CARGA_ACTIVAS").HasFilter("[ESTADO] = 1");
     }
 }

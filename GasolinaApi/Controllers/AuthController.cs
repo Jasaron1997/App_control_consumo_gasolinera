@@ -5,6 +5,7 @@ using GasolinaApi.DTOs.Responses;
 using GasolinaApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GasolinaApi.Controllers;
 
@@ -20,6 +21,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<RespuestaApi<LoginResponse>>> Login(LoginRequest request)
     {

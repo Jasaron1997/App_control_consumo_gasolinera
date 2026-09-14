@@ -19,8 +19,12 @@ export default function Vehiculos() {
   const [error, setError] = useState(null)
 
   async function cargarVehiculos() {
-    const datos = await obtenerVehiculos()
-    setVehiculos(datos)
+    try {
+      const datos = await obtenerVehiculos()
+      setVehiculos(datos)
+    } catch {
+      setError('No se pudo cargar la lista de vehículos.')
+    }
   }
 
   useEffect(() => {
@@ -54,9 +58,9 @@ export default function Vehiculos() {
     }
 
     setGuardando(false)
-    // El vehículo ya se guardó; si esta recarga falla no es un error de guardado,
-    // el usuario simplemente no lo verá listado hasta la próxima recarga.
-    cargarVehiculos().catch(() => {})
+    // El vehículo ya se guardó; cargarVehiculos() maneja su propio error si esta
+    // recarga falla (no es un error de guardado).
+    cargarVehiculos()
   }
 
   async function manejarEliminar(id) {
@@ -69,10 +73,9 @@ export default function Vehiculos() {
       return
     }
 
-    // El vehículo ya se eliminó; si esta recarga falla no es un error de
-    // eliminación, el usuario simplemente no verá la lista actualizada hasta
-    // la próxima recarga.
-    cargarVehiculos().catch(() => {})
+    // El vehículo ya se eliminó; cargarVehiculos() maneja su propio error si
+    // esta recarga falla (no es un error de eliminación).
+    cargarVehiculos()
   }
 
   return (

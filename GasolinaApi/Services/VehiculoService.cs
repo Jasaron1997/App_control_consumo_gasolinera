@@ -84,7 +84,11 @@ public class VehiculoService : IVehiculoService
         catch (DbUpdateException excepcion) when (excepcion.InnerException?.Message
             .Contains("UQ_VEHICULO_PLACA_ACTIVA", StringComparison.OrdinalIgnoreCase) == true)
         {
-            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
+            // No se echa la placa de vuelta: el índice único es global (no por usuario,
+            // ver 01_DDL_Tablas.sql), así que confirmar el valor exacto en el mensaje le
+            // daría a cualquier usuario autenticado un oráculo para probar si una placa
+            // ajena está registrada por otro usuario.
+            throw new ValidacionException("Ya existe un vehículo activo con esa placa.");
         }
     }
 
@@ -140,7 +144,8 @@ public class VehiculoService : IVehiculoService
 
         if (placaEnUso)
         {
-            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
+            // Mismo motivo que en GuardarValidandoPlacaAsync: no confirmar el valor exacto.
+            throw new ValidacionException("Ya existe un vehículo activo con esa placa.");
         }
     }
 
