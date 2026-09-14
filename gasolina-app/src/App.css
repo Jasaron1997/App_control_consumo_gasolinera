@@ -105,8 +105,7 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.pagina-dashboard__encabezado,
-.pagina-historial__encabezado {
+.pagina-dashboard__encabezado {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -166,27 +165,5 @@ button:disabled {
 
 .selector-estacion__opciones li button:hover {
   background: var(--color-fondo);
-}
-
-.tabla-historial {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.tabla-historial th,
-.tabla-historial td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-borde);
-  font-size: 0.9rem;
-}
-
-.tabla-historial__acciones {
-  display: flex;
-  gap: 8px;
 }
 
