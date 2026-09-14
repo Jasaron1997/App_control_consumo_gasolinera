@@ -1,19 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
-import { obtenerVehiculos } from '../api/vehiculosApi'
+import SelectorVehiculo from '../components/SelectorVehiculo'
 import { formatearFecha } from '../utils/fecha'
 
 export default function Historial() {
-  const [vehiculos, setVehiculos] = useState([])
   const [vehiculoId, setVehiculoId] = useState('')
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
   const idSolicitudRef = useRef(0)
-
-  useEffect(() => {
-    obtenerVehiculos().then(setVehiculos).catch(() => {})
-  }, [])
 
   // idSolicitudRef descarta una respuesta que llega fuera de orden (ej. el usuario
   // cambia el filtro de vehículo dos veces rápido y la primera solicitud resuelve
@@ -60,14 +55,7 @@ export default function Historial() {
       <div className="pagina-historial__encabezado">
         <h1>Historial de cargas</h1>
 
-        <select value={vehiculoId} onChange={(evento) => setVehiculoId(evento.target.value)}>
-          <option value="">Todos los vehículos</option>
-          {vehiculos.map((vehiculo) => (
-            <option key={vehiculo.id} value={vehiculo.id}>
-              {vehiculo.nombre}
-            </option>
-          ))}
-        </select>
+        <SelectorVehiculo value={vehiculoId} onChange={setVehiculoId} />
       </div>
 
       {error && <p className="mensaje-error">{error}</p>}

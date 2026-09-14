@@ -2,7 +2,6 @@ using System.Security.Claims;
 using GasolinaApi.Auth;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs;
-using GasolinaApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -81,19 +80,10 @@ public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
         {
             var descriptor = contexto.ActionDescriptor as ControllerActionDescriptor;
 
-            _dbContext.LogsAuditoria.Add(new LogAuditoria
-            {
-                UsuarioId = usuarioId,
-                Fecha = DateTime.UtcNow,
-                TipoAccion = AuditoriaHelper.InferirTipoAccion(contexto.HttpContext.Request.Method),
-                Entidad = descriptor?.ControllerName ?? "Desconocido",
-                Controlador = descriptor?.ControllerName,
-                AccionMetodo = descriptor?.ActionName,
-                VistaOrigen = contexto.HttpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault(),
-                Exitoso = false,
-                MensajeError = AuditoriaHelper.Truncar(mensaje)
-            });
+            var log = AuditoriaHelper.CrearLog(contexto.HttpContext, descriptor, usuarioId,
+                exitoso: false, mensajeError: mensaje);
 
+            _dbContext.LogsAuditoria.Add(log);
             await _dbContext.SaveChangesAsync();
         }
         catch (Exception excepcionAuditoria)

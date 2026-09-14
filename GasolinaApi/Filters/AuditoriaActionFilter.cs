@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using GasolinaApi.Auth;
 using GasolinaApi.Data;
-using GasolinaApi.Models;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -58,20 +57,14 @@ public class AuditoriaActionFilter : IAsyncActionFilter
             _dbContext.ChangeTracker.Clear();
         }
 
-        var log = new LogAuditoria
-        {
-            UsuarioId = context.HttpContext.User.ObtenerUsuarioIdOpcional(),
-            Fecha = DateTime.UtcNow,
-            TipoAccion = AuditoriaHelper.InferirTipoAccion(context.HttpContext.Request.Method),
-            Entidad = descriptor.ControllerName,
-            IdRegistro = ObtenerIdRegistro(context, resultContext),
-            Parametros = SerializarParametros(context.ActionArguments),
-            Controlador = descriptor.ControllerName,
-            AccionMetodo = descriptor.ActionName,
-            VistaOrigen = context.HttpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault(),
-            Exitoso = resultContext.Exception is null,
-            MensajeError = AuditoriaHelper.Truncar(resultContext.Exception?.Message)
-        };
+        var log = AuditoriaHelper.CrearLog(
+            context.HttpContext,
+            descriptor,
+            context.HttpContext.User.ObtenerUsuarioIdOpcional(),
+            exitoso: resultContext.Exception is null,
+            mensajeError: resultContext.Exception?.Message,
+            idRegistro: ObtenerIdRegistro(context, resultContext),
+            parametros: SerializarParametros(context.ActionArguments));
 
         _dbContext.LogsAuditoria.Add(log);
         await _dbContext.SaveChangesAsync();

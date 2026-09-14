@@ -1,11 +1,15 @@
+using GasolinaApi.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.Logging;
 
 namespace GasolinaApi.Filters;
 
 /// <summary>
 /// Piezas compartidas entre AuditoriaActionFilter (cubre el camino normal de cada
-/// request) y ValidacionModeloResponseFactory (cubre el 400 automático de
-/// [ApiController], que corre antes de que cualquier ActionFilter lo intercepte).
+/// request), ValidacionModeloResponseFactory (cubre el 400 automático de [ApiController],
+/// que corre antes de que cualquier ActionFilter lo intercepte) y ValidarTokenVersionFilter
+/// (cubre el 401 por sesión invalidada, que también corre antes de cualquier ActionFilter).
 /// </summary>
 internal static class AuditoriaHelper
 {
@@ -36,4 +40,26 @@ internal static class AuditoriaHelper
     // catch+log con mensajes ligeramente distintos en cada uno.
     public static void RegistrarFalloDeAuditoria(ILogger logger, Exception excepcion, string contexto) =>
         logger.LogError(excepcion, "No se pudo registrar en auditoría: {Contexto}.", contexto);
+
+    // Los 3 puntos que escriben en TB_LOG_AUDITORIA (AuditoriaActionFilter,
+    // ValidacionModeloResponseFactory, ValidarTokenVersionFilter) armaban el mismo
+    // LogAuditoria de 7 campos por separado; se centraliza aquí para no repetir ese
+    // esqueleto. idRegistro/parametros quedan opcionales porque solo AuditoriaActionFilter
+    // (el único que corre sobre una acción ya bindeada, con argumentos y resultado) los usa.
+    public static LogAuditoria CrearLog(HttpContext httpContext, ControllerActionDescriptor? descriptor,
+        int? usuarioId, bool exitoso, string? mensajeError, string? idRegistro = null, string? parametros = null) =>
+        new()
+        {
+            UsuarioId = usuarioId,
+            Fecha = DateTime.UtcNow,
+            TipoAccion = InferirTipoAccion(httpContext.Request.Method),
+            Entidad = descriptor?.ControllerName ?? "Desconocido",
+            IdRegistro = idRegistro,
+            Parametros = parametros,
+            Controlador = descriptor?.ControllerName,
+            AccionMetodo = descriptor?.ActionName,
+            VistaOrigen = httpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault(),
+            Exitoso = exitoso,
+            MensajeError = Truncar(mensajeError)
+        };
 }

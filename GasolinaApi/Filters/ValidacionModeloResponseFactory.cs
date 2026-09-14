@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using GasolinaApi.Auth;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs;
-using GasolinaApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 
@@ -42,20 +41,15 @@ public static class ValidacionModeloResponseFactory
             var dbContext = contexto.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
             var descriptor = contexto.ActionDescriptor as ControllerActionDescriptor;
 
-            dbContext.LogsAuditoria.Add(new LogAuditoria
-            {
-                UsuarioId = contexto.HttpContext.User.ObtenerUsuarioIdOpcional(),
-                Fecha = DateTime.UtcNow,
-                TipoAccion = AuditoriaHelper.InferirTipoAccion(contexto.HttpContext.Request.Method),
-                Entidad = descriptor?.ControllerName ?? "Desconocido",
-                Parametros = SerializarValoresEnviados(contexto),
-                Controlador = descriptor?.ControllerName,
-                AccionMetodo = descriptor?.ActionName,
-                VistaOrigen = contexto.HttpContext.Request.Headers["X-Vista-Origen"].FirstOrDefault(),
-                Exitoso = false,
-                MensajeError = AuditoriaHelper.Truncar(mensaje)
-            });
+            var log = AuditoriaHelper.CrearLog(
+                contexto.HttpContext,
+                descriptor,
+                contexto.HttpContext.User.ObtenerUsuarioIdOpcional(),
+                exitoso: false,
+                mensajeError: mensaje,
+                parametros: SerializarValoresEnviados(contexto));
 
+            dbContext.LogsAuditoria.Add(log);
             dbContext.SaveChanges();
         }
         catch (Exception excepcionAuditoria)
