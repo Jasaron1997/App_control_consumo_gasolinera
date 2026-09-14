@@ -10,16 +10,6 @@ export async function obtenerTiposCombustible() {
   return data.datos
 }
 
-export async function obtenerDepartamentos() {
-  const { data } = await httpClient.get('/api/catalogos/departamentos')
-  return data.datos
-}
-
-export async function obtenerMunicipios(departamentoId) {
-  const { data } = await httpClient.get(`/api/catalogos/departamentos/${departamentoId}/municipios`)
-  return data.datos
-}
-
 export async function buscarEstacionesServicio(buscar) {
   const { data } = await httpClient.get('/api/catalogos/estaciones-servicio', {
     params: { buscar }

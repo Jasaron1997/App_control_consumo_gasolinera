@@ -1,11 +1,15 @@
 using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 using GasolinaApi.Auth;
 using GasolinaApi.Data;
+using GasolinaApi.DTOs;
 using GasolinaApi.Filters;
 using GasolinaApi.Middleware;
 using GasolinaApi.Services;
 using GasolinaApi.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -28,6 +32,10 @@ if (string.IsNullOrWhiteSpace(jwtSettings.Secret))
 }
 
 var origenesPermitidos = builder.Configuration.GetSection("Cors:OrigenesPermitidos").Get<string[]>() ?? [];
+
+// Mismas opciones de serialización que ManejoErroresMiddleware, para que el 429
+// del rate limiter (que no pasa por ese middleware) use el mismo camelCase.
+var opcionesJsonRespuestaApi = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
 // ---- Base de datos (Database First: el esquema ya existe, no se generan migraciones) ----
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -55,6 +63,31 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+// ---- Rate limiting (login: 5 intentos/minuto por IP, contra fuerza bruta) ----
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Mismo sobre RespuestaApi<T> que ManejoErroresMiddleware: el rechazo del
+    // limiter escribe la respuesta directamente y nunca pasa por ese middleware.
+    options.OnRejected = async (contexto, token) =>
+    {
+        contexto.HttpContext.Response.ContentType = "application/json";
+        var respuesta = RespuestaApi<object>.Error("Demasiados intentos. Espera un minuto e intenta de nuevo.");
+        await contexto.HttpContext.Response.WriteAsync(
+            JsonSerializer.Serialize(respuesta, opcionesJsonRespuestaApi), token);
+    };
+
+    options.AddPolicy("login", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocido",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 5,
+            QueueLimit = 0
+        }));
+});
 
 // ---- CORS (frontend en Azure Static Web Apps / Vite dev server) ----
 builder.Services.AddCors(options =>
@@ -120,9 +153,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ManejoErroresMiddleware>();
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseHttpsRedirection();
 
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

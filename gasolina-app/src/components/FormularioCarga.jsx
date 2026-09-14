@@ -12,21 +12,46 @@ function fechaLocalHoy() {
   return `${anio}-${mes}-${dia}`
 }
 
-function valoresIniciales() {
+// Sin cargaExistente: valores en blanco para registrar una carga nueva. Con
+// cargaExistente: precarga el formulario para editarla. "Kilómetros
+// recorridos" se deja en blanco cuando ese valor lo calculó la app sola
+// (kilometrosRecorridosAutocalculado) para que, si no se toca, siga
+// autocalculándose con los datos nuevos en vez de "congelarlo" con el valor
+// viejo — solo se precarga cuando el usuario lo había puesto a mano.
+function valoresIniciales(cargaExistente) {
+  if (!cargaExistente) {
+    return {
+      vehiculoId: '',
+      tipoCombustibleId: '',
+      fecha: fechaLocalHoy(),
+      kilometraje: '',
+      kilometrosRecorridos: '',
+      galones: '',
+      costoTotal: ''
+    }
+  }
+
   return {
-    vehiculoId: '',
-    tipoCombustibleId: '',
-    fecha: fechaLocalHoy(),
-    kilometraje: '',
-    kilometrosRecorridos: '',
-    galones: '',
-    costoTotal: ''
+    vehiculoId: String(cargaExistente.vehiculoId),
+    tipoCombustibleId: String(cargaExistente.tipoCombustibleId),
+    fecha: cargaExistente.fecha.slice(0, 10),
+    kilometraje: String(cargaExistente.kilometraje),
+    kilometrosRecorridos: cargaExistente.kilometrosRecorridosAutocalculado
+      ? ''
+      : String(cargaExistente.kilometrosRecorridos ?? ''),
+    galones: String(cargaExistente.galones),
+    costoTotal: String(cargaExistente.costoTotal)
   }
 }
 
-export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar, guardando }) {
-  const [valores, setValores] = useState(valoresIniciales)
-  const [estacionSeleccionada, setEstacionSeleccionada] = useState(null)
+function estacionInicial(cargaExistente) {
+  if (!cargaExistente?.estacionServicioId) return null
+  return { id: cargaExistente.estacionServicioId, nombre: cargaExistente.estacionServicioNombre }
+}
+
+export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar, guardando, cargaExistente, onCancelar }) {
+  const [valores, setValores] = useState(() => valoresIniciales(cargaExistente))
+  const [estacionSeleccionada, setEstacionSeleccionada] = useState(() => estacionInicial(cargaExistente))
   const [error, setError] = useState(null)
 
   function actualizarCampo(campo, valor) {
@@ -59,15 +84,23 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
         costoTotal: Number(valores.costoTotal)
       })
 
-      setValores(valoresIniciales())
-      setEstacionSeleccionada(null)
+      // En modo edición no se limpia el formulario: el padre cierra la vista de
+      // edición al terminar (ver Historial.jsx). Reiniciarlo aquí igual pisaría
+      // los valores justo antes de que el formulario se desmonte.
+      if (!cargaExistente) {
+        setValores(valoresIniciales())
+        setEstacionSeleccionada(null)
+      }
     } catch (error) {
       setError(error.response?.data?.mensaje ?? 'No se pudo registrar la carga.')
     }
   }
 
   return (
-    <form className="formulario-carga" onSubmit={manejarEnvio}>
+    <form
+      className="flex flex-col gap-3.5 max-w-[420px] bg-superficie border border-borde rounded-[10px] p-5"
+      onSubmit={manejarEnvio}
+    >
       <label>
         Vehículo
         <select
@@ -162,9 +195,21 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
 
       {error && <p className="mensaje-error">{error}</p>}
 
-      <button type="submit" disabled={guardando}>
-        {guardando ? 'Guardando...' : 'Registrar carga'}
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" disabled={guardando}>
+          {guardando
+            ? 'Guardando...'
+            : cargaExistente
+              ? 'Guardar cambios'
+              : 'Registrar carga'}
+        </button>
+
+        {onCancelar && (
+          <button type="button" className="boton-secundario" onClick={onCancelar} disabled={guardando}>
+            Cancelar
+          </button>
+        )}
+      </div>
     </form>
   )
 }

@@ -8,6 +8,11 @@ public class Carga : EntidadBase
     public DateTime Fecha { get; set; }
     public decimal Kilometraje { get; set; }
     public decimal? KilometrosRecorridos { get; set; }
+    // true si KilometrosRecorridos lo calculó CargaService (kilometraje - el de la
+    // carga anterior); false si el usuario lo escribió a mano. Distingue cuándo es
+    // seguro recalcularlo solo al editar/borrar una carga vecina, y cuándo no
+    // tocarlo porque el usuario lo fijó a propósito.
+    public bool KilometrosRecorridosAutocalculado { get; set; }
     public decimal Galones { get; set; }
     public decimal CostoTotal { get; set; }
 

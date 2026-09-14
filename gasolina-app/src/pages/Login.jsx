@@ -35,8 +35,11 @@ export default function Login() {
   }
 
   return (
-    <div className="pagina-login">
-      <form className="tarjeta-login" onSubmit={manejarEnvio}>
+    <div className="min-h-svh flex items-center justify-center p-4">
+      <form
+        className="bg-superficie border border-borde rounded-xl p-8 w-full max-w-[360px] flex flex-col gap-3.5"
+        onSubmit={manejarEnvio}
+      >
         <h1>Control de Gasolina</h1>
 
         <label>

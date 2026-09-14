@@ -18,6 +18,7 @@ public class CargaConfiguration : EntidadBaseConfiguration<Carga>
         builder.Property(e => e.Fecha).HasColumnName("FECHA").IsRequired();
         builder.Property(e => e.Kilometraje).HasColumnName("KILOMETRAJE").HasColumnType("decimal(10,2)").IsRequired();
         builder.Property(e => e.KilometrosRecorridos).HasColumnName("KILOMETROS_RECORRIDOS").HasColumnType("decimal(10,2)");
+        builder.Property(e => e.KilometrosRecorridosAutocalculado).HasColumnName("KILOMETROS_RECORRIDOS_AUTOCALCULADO").IsRequired();
         builder.Property(e => e.Galones).HasColumnName("GALONES").HasColumnType("decimal(6,2)").IsRequired();
         builder.Property(e => e.CostoTotal).HasColumnName("COSTO_TOTAL").HasColumnType("decimal(8,2)").IsRequired();
 
@@ -43,5 +44,6 @@ public class CargaConfiguration : EntidadBaseConfiguration<Carga>
         builder.HasIndex(e => e.TipoCombustibleId).HasDatabaseName("IX_CARGA_COMBUSTIBLE");
         builder.HasIndex(e => e.EstacionServicioId).HasDatabaseName("IX_CARGA_ESTACION");
         builder.HasIndex(e => e.Fecha).HasDatabaseName("IX_CARGA_FECHA");
+        builder.HasIndex(e => e.Id).HasDatabaseName("IX_CARGA_ACTIVAS").HasFilter("[ESTADO] = 1");
     }
 }

@@ -14,3 +14,7 @@ npm-debug.log*
 .vscode/
 .idea/
 .DS_Store
+
+# Docker local (database/docker-setup.sh) — credenciales solo de desarrollo,
+# nunca de producción, pero de todas formas no se commitean
+/.env

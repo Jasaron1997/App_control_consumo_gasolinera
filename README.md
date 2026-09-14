@@ -41,9 +41,37 @@ con un nuevo script SQL y luego se ajustan los mapeos de EF a mano.
 
 ## 1. Base de datos
 
-Ejecuta los scripts de `database/` **en orden**, contra tu instancia de
-SQL Server (con SQL Server Management Studio, Azure Data Studio, o
-`sqlcmd`):
+### Opción rápida: Docker (desarrollo/pruebas locales)
+
+`docker-compose.yml` levanta un SQL Server 2022 real en un contenedor y
+`database/docker-setup.sh` aplica los 4 scripts por vos (generando un hash
+de BCrypt real para tu usuario de prueba, sin tocar nada a mano):
+
+```bash
+cp .env.example .env     # ajustá las contraseñas/usuario si querés
+docker compose up -d
+./database/docker-setup.sh
+```
+
+Al final te imprime los `dotnet user-secrets set` exactos para apuntar
+`GasolinaApi` a esta instancia y las credenciales de login de prueba. El
+script se puede volver a correr sin romper nada (cada paso se salta si ya
+se aplicó). En Apple Silicon corre vía emulación (`platform: linux/amd64`
+en el compose) porque Microsoft solo publica esta imagen para amd64 — el
+arranque tarda más, pero es el motor real de SQL Server (los índices
+filtrados y las columnas `PERSISTED` del DDL no funcionan igual en
+`azure-sql-edge`). `.env` nunca se commitea (ver `.gitignore`); esto es
+solo para local, nunca para producción.
+
+Para reiniciar desde cero: `docker compose down -v` (borra el volumen de
+datos) y volvé a correr los dos comandos de arriba.
+
+### Manual
+
+Alternativamente, ejecuta los scripts de `database/` **en orden** a mano,
+contra tu instancia de SQL Server (con SQL Server Management Studio, Azure
+Data Studio, o `sqlcmd`) — necesario para Azure SQL en producción, ya que
+el Docker de arriba es solo para desarrollo local:
 
 1. `01_DDL_Tablas.sql` — crea todas las tablas, índices y los catálogos
    fijos de tipo de vehículo/combustible.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { obtenerVehiculos, crearVehiculo, eliminarVehiculo } from '../api/vehiculosApi'
 import { obtenerTiposVehiculo, obtenerTiposCombustible } from '../api/catalogosApi'
+import { useConfirmar } from '../hooks/useConfirmar'
 
 const valoresIniciales = {
   tipoVehiculoId: '',
@@ -17,10 +18,15 @@ export default function Vehiculos() {
   const [valores, setValores] = useState(valoresIniciales)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
+  const { confirmar, dialogo } = useConfirmar()
 
   async function cargarVehiculos() {
-    const datos = await obtenerVehiculos()
-    setVehiculos(datos)
+    try {
+      const datos = await obtenerVehiculos()
+      setVehiculos(datos)
+    } catch {
+      setError('No se pudo cargar la lista de vehículos.')
+    }
   }
 
   useEffect(() => {
@@ -54,13 +60,13 @@ export default function Vehiculos() {
     }
 
     setGuardando(false)
-    // El vehículo ya se guardó; si esta recarga falla no es un error de guardado,
-    // el usuario simplemente no lo verá listado hasta la próxima recarga.
-    cargarVehiculos().catch(() => {})
+    // El vehículo ya se guardó; cargarVehiculos() maneja su propio error si esta
+    // recarga falla (no es un error de guardado).
+    cargarVehiculos()
   }
 
   async function manejarEliminar(id) {
-    if (!window.confirm('¿Eliminar este vehículo? El historial de cargas se conserva.')) return
+    if (!(await confirmar('¿Eliminar este vehículo? El historial de cargas se conserva.'))) return
     setError(null)
     try {
       await eliminarVehiculo(id)
@@ -69,25 +75,29 @@ export default function Vehiculos() {
       return
     }
 
-    // El vehículo ya se eliminó; si esta recarga falla no es un error de
-    // eliminación, el usuario simplemente no verá la lista actualizada hasta
-    // la próxima recarga.
-    cargarVehiculos().catch(() => {})
+    // El vehículo ya se eliminó; cargarVehiculos() maneja su propio error si
+    // esta recarga falla (no es un error de eliminación).
+    cargarVehiculos()
   }
 
   return (
-    <div className="pagina-vehiculos">
+    <div>
+      {dialogo}
+
       <h1>Vehículos</h1>
 
-      <ul className="lista-vehiculos">
+      <ul className="list-none p-0 mb-6 flex flex-col gap-2">
         {vehiculos.map((vehiculo) => (
-          <li key={vehiculo.id}>
+          <li
+            key={vehiculo.id}
+            className="flex justify-between items-center bg-superficie border border-borde rounded-lg px-3.5 py-2.5"
+          >
             <div>
               <strong>{vehiculo.nombre}</strong>
               <span> · {vehiculo.tipoVehiculoNombre} · {vehiculo.tipoCombustibleNombre}</span>
               {vehiculo.placa && <span> · {vehiculo.placa}</span>}
             </div>
-            <button type="button" onClick={() => manejarEliminar(vehiculo.id)}>
+            <button type="button" className="boton-peligro" onClick={() => manejarEliminar(vehiculo.id)}>
               Eliminar
             </button>
           </li>
@@ -96,7 +106,10 @@ export default function Vehiculos() {
 
       <h2>Agregar vehículo</h2>
 
-      <form className="formulario-vehiculo" onSubmit={manejarEnvio}>
+      <form
+        className="flex flex-col gap-3.5 max-w-[420px] bg-superficie border border-borde rounded-[10px] p-5"
+        onSubmit={manejarEnvio}
+      >
         <label>
           Nombre
           <input

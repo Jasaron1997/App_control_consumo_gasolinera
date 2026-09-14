@@ -23,9 +23,9 @@ export default function Layout() {
   setVistaOrigen(VISTAS_POR_RUTA[location.pathname] ?? location.pathname)
 
   return (
-    <div className="layout">
+    <div className="flex flex-col min-h-svh">
       <NavBar />
-      <main className="layout__contenido">
+      <main className="flex-1 p-6 max-w-[1100px] w-full mx-auto">
         <Outlet />
       </main>
     </div>

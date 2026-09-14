@@ -17,7 +17,7 @@ export default function GraficaTendencia({ datos }) {
   }))
 
   return (
-    <div className="grafica-tendencia">
+    <div className="bg-superficie border border-borde rounded-[10px] p-4">
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={datosFormateados} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />

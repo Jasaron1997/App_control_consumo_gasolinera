@@ -55,7 +55,7 @@ public class CargaService : ICargaService
     public async Task<CargaResponse> CrearAsync(CrearCargaRequest request, int usuarioId)
     {
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+        var (fecha, tipoCombustibleId, kilometrosRecorridos, autocalculado) =
             await PrepararCambiosAsync(request, vehiculo, FechaLocal.Hoy, idAExcluir: null);
 
         var carga = new Carga
@@ -66,6 +66,7 @@ public class CargaService : ICargaService
             Fecha = fecha,
             Kilometraje = request.Kilometraje,
             KilometrosRecorridos = kilometrosRecorridos,
+            KilometrosRecorridosAutocalculado = autocalculado,
             Galones = request.Galones,
             CostoTotal = request.CostoTotal,
             Estado = true,
@@ -76,14 +77,19 @@ public class CargaService : ICargaService
         _dbContext.Cargas.Add(carga);
         await _dbContext.SaveChangesAsync();
 
+        await RecalcularPosteriorSiCorrespondeAsync(vehiculo.Id, fecha, carga.Id, usuarioId);
+
         return await ObtenerRespuestaAsync(carga.Id);
     }
 
     public async Task<CargaResponse> ActualizarAsync(int id, CrearCargaRequest request, int usuarioId)
     {
         var carga = await ObtenerCargaPropiaAsync(id, usuarioId);
+        var vehiculoIdAnterior = carga.VehiculoId;
+        var fechaAnterior = carga.Fecha;
+
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+        var (fecha, tipoCombustibleId, kilometrosRecorridos, autocalculado) =
             await PrepararCambiosAsync(request, vehiculo, carga.Fecha, idAExcluir: carga.Id);
 
         carga.VehiculoId = vehiculo.Id;
@@ -92,6 +98,7 @@ public class CargaService : ICargaService
         carga.Fecha = fecha;
         carga.Kilometraje = request.Kilometraje;
         carga.KilometrosRecorridos = kilometrosRecorridos;
+        carga.KilometrosRecorridosAutocalculado = autocalculado;
         carga.Galones = request.Galones;
         carga.CostoTotal = request.CostoTotal;
         carga.UsuarioModificacion = usuarioId;
@@ -99,13 +106,19 @@ public class CargaService : ICargaService
 
         await _dbContext.SaveChangesAsync();
 
+        await RecalcularPosteriorSiCorrespondeAsync(vehiculo.Id, fecha, carga.Id, usuarioId);
+        if (vehiculoIdAnterior != vehiculo.Id || fechaAnterior != fecha)
+        {
+            await RecalcularPosteriorSiCorrespondeAsync(vehiculoIdAnterior, fechaAnterior, carga.Id, usuarioId);
+        }
+
         return await ObtenerRespuestaAsync(carga.Id);
     }
 
     // Resuelve fecha/combustible, valida combustible+estación, y calcula (o valida)
     // KilometrosRecorridos contra las cargas vecinas — compartido por Crear y Actualizar,
     // que antes repetían esta misma secuencia casi palabra por palabra.
-    private async Task<(DateTime Fecha, int TipoCombustibleId, decimal? KilometrosRecorridos)> PrepararCambiosAsync(
+    private async Task<(DateTime Fecha, int TipoCombustibleId, decimal? KilometrosRecorridos, bool Autocalculado)> PrepararCambiosAsync(
         CrearCargaRequest request, Vehiculo vehiculo, DateTime fechaPorDefecto, int? idAExcluir)
     {
         var fecha = request.Fecha ?? fechaPorDefecto;
@@ -118,10 +131,32 @@ public class CargaService : ICargaService
 
         ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
 
+        var autocalculado = request.KilometrosRecorridos is null;
         var kilometrosRecorridos = request.KilometrosRecorridos
             ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
 
-        return (fecha, tipoCombustibleId, kilometrosRecorridos);
+        return (fecha, tipoCombustibleId, kilometrosRecorridos, autocalculado);
+    }
+
+    // Crear, editar o borrar una carga puede cambiar cuál es el "anterior" real de
+    // la carga que le sigue cronológicamente. Si el valor de esa vecina fue
+    // autocalculado, se recalcula contra el nuevo estado de la cadena; si el
+    // usuario lo había fijado a mano, se deja intacto a propósito (ver
+    // 05_Alter_Carga_KmRecorridosAutocalculado.sql).
+    private async Task RecalcularPosteriorSiCorrespondeAsync(int vehiculoId, DateTime fecha, int idAExcluir, int usuarioId)
+    {
+        var posterior = await ObtenerCargaPosteriorAsync(vehiculoId, fecha, idAExcluir);
+        if (posterior is null || !posterior.KilometrosRecorridosAutocalculado)
+        {
+            return;
+        }
+
+        var nuevoAnterior = await ObtenerCargaAnteriorAsync(vehiculoId, posterior.Fecha, posterior.Id);
+        posterior.KilometrosRecorridos = nuevoAnterior is null ? null : posterior.Kilometraje - nuevoAnterior.Kilometraje;
+        posterior.UsuarioModificacion = usuarioId;
+        posterior.FechaModificacion = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
     }
 
     private async Task ValidarCombustibleYEstacionAsync(int? tipoCombustibleIdSolicitado, int tipoCombustibleId, int? estacionServicioId)
@@ -167,6 +202,8 @@ public class CargaService : ICargaService
     public async Task EliminarAsync(int id, int usuarioId)
     {
         var carga = await ObtenerCargaPropiaAsync(id, usuarioId);
+        var vehiculoId = carga.VehiculoId;
+        var fecha = carga.Fecha;
 
         carga.Estado = false;
         carga.FechaEliminacion = DateTime.UtcNow;
@@ -174,6 +211,10 @@ public class CargaService : ICargaService
         carga.FechaModificacion = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync();
+
+        // La carga que quedaba justo después de esta puede necesitar recalcular su
+        // KilometrosRecorridos contra su nuevo "anterior" real (esta ya no cuenta).
+        await RecalcularPosteriorSiCorrespondeAsync(vehiculoId, fecha, id, usuarioId);
     }
 
     private async Task<Vehiculo> ObtenerVehiculoPropioAsync(int vehiculoId, int usuarioId)
@@ -245,6 +286,7 @@ public class CargaService : ICargaService
         Fecha = c.Fecha,
         Kilometraje = c.Kilometraje,
         KilometrosRecorridos = c.KilometrosRecorridos,
+        KilometrosRecorridosAutocalculado = c.KilometrosRecorridosAutocalculado,
         Galones = c.Galones,
         CostoTotal = c.CostoTotal,
         PrecioPorGalon = c.PrecioPorGalon,

@@ -18,6 +18,7 @@ public class VehiculoRequest
     [MaxLength(20)]
     public string? Placa { get; set; }
 
-    [Range(0.01, double.MaxValue, ErrorMessage = "La capacidad del tanque debe ser mayor a cero.")]
+    // Tope superior = precisión de TB_VEHICULO.TANQUE_CAPACIDAD_GALONES (DECIMAL(5,2)).
+    [Range(0.01, 999.99, ErrorMessage = "La capacidad del tanque debe estar entre 0.01 y 999.99.")]
     public decimal? TanqueCapacidadGalones { get; set; }
 }

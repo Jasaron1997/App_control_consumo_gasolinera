@@ -28,7 +28,7 @@ export default function RegistrarCarga() {
   }
 
   return (
-    <div className="pagina-registrar-carga">
+    <div>
       <h1>Registrar carga</h1>
 
       {mensajeExito && <p className="mensaje-exito">{mensajeExito}</p>}
