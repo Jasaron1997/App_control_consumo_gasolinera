@@ -60,6 +60,16 @@ else
   echo "El esquema ya existe (TB_USUARIO ya está creada), se omiten 01 y 02."
 fi
 
+existe_columna_autocalculado=$("${SQLCMD[@]}" -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d GasolinaDb -h -1 \
+  -Q "SET NOCOUNT ON; SELECT CASE WHEN COL_LENGTH('dbo.TB_CARGA', 'KILOMETROS_RECORRIDOS_AUTOCALCULADO') IS NULL THEN 0 ELSE 1 END" | tr -d '[:space:]')
+
+if [ "$existe_columna_autocalculado" != "1" ]; then
+  echo "Aplicando 05_Alter_Carga_KmRecorridosAutocalculado.sql..."
+  "${SQLCMD[@]}" -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -d GasolinaDb < database/05_Alter_Carga_KmRecorridosAutocalculado.sql
+else
+  echo "TB_CARGA.KILOMETROS_RECORRIDOS_AUTOCALCULADO ya existe, se omite 05."
+fi
+
 echo "Generando hash de BCrypt para SEED_USUARIO_PASSWORD (dotnet fsi, mismo método que documenta 03_Seed_Usuario.sql)..."
 # mktemp -t en macOS APPEND un sufijo aleatorio al final del nombre dado (no
 # sustituye XXXXXX), así que el archivo no terminaría en .fsx y dotnet fsi no

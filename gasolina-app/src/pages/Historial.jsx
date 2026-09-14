@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
+import { obtenerCargas, eliminarCarga, actualizarCarga } from '../api/cargasApi'
+import { obtenerVehiculos } from '../api/vehiculosApi'
+import { obtenerTiposCombustible } from '../api/catalogosApi'
 import SelectorVehiculo from '../components/SelectorVehiculo'
+import FormularioCarga from '../components/FormularioCarga'
 import { formatearFecha } from '../utils/fecha'
 
 export default function Historial() {
@@ -9,6 +12,12 @@ export default function Historial() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
   const idSolicitudRef = useRef(0)
+
+  // Solo se usan cuando se está editando una carga (formulario de edición).
+  const [vehiculos, setVehiculos] = useState([])
+  const [tiposCombustible, setTiposCombustible] = useState([])
+  const [cargaEditando, setCargaEditando] = useState(null)
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false)
 
   // idSolicitudRef descarta una respuesta que llega fuera de orden (ej. el usuario
   // cambia el filtro de vehículo dos veces rápido y la primera solicitud resuelve
@@ -36,6 +45,13 @@ export default function Historial() {
     cargarHistorial()
   }, [cargarHistorial])
 
+  // Los catálogos para el formulario de edición se cargan una sola vez, al
+  // montar, igual que en RegistrarCarga.jsx — no dependen del filtro de vehículo.
+  useEffect(() => {
+    obtenerVehiculos().then(setVehiculos).catch(() => {})
+    obtenerTiposCombustible().then(setTiposCombustible).catch(() => {})
+  }, [])
+
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar esta carga?')) return
     setError(null)
@@ -49,6 +65,17 @@ export default function Historial() {
     cargarHistorial()
   }
 
+  async function manejarGuardarEdicion(payload) {
+    setGuardandoEdicion(true)
+    try {
+      await actualizarCarga(cargaEditando.id, payload)
+      setCargaEditando(null)
+      cargarHistorial()
+    } finally {
+      setGuardandoEdicion(false)
+    }
+  }
+
   return (
     <div className="pagina-historial">
       <div className="pagina-historial__encabezado">
@@ -59,7 +86,18 @@ export default function Historial() {
 
       {error && <p className="mensaje-error">{error}</p>}
 
-      {cargando ? (
+      {cargaEditando && (
+        <FormularioCarga
+          vehiculos={vehiculos}
+          tiposCombustible={tiposCombustible}
+          cargaExistente={cargaEditando}
+          onGuardar={manejarGuardarEdicion}
+          onCancelar={() => setCargaEditando(null)}
+          guardando={guardandoEdicion}
+        />
+      )}
+
+      {!cargaEditando && (cargando ? (
         <p>Cargando...</p>
       ) : cargas.length === 0 ? (
         <p>No hay cargas registradas todavía.</p>
@@ -92,6 +130,9 @@ export default function Historial() {
                 <td>Q{carga.costoTotal.toFixed(2)}</td>
                 <td>{carga.precioPorGalon?.toFixed(2) ?? '—'}</td>
                 <td>
+                  <button type="button" onClick={() => setCargaEditando(carga)}>
+                    Editar
+                  </button>
                   <button type="button" onClick={() => manejarEliminar(carga.id)}>
                     Eliminar
                   </button>
@@ -100,7 +141,7 @@ export default function Historial() {
             ))}
           </tbody>
         </table>
-      )}
+      ))}
     </div>
   )
 }

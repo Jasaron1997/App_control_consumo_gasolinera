@@ -18,6 +18,7 @@ public class CargaConfiguration : EntidadBaseConfiguration<Carga>
         builder.Property(e => e.Fecha).HasColumnName("FECHA").IsRequired();
         builder.Property(e => e.Kilometraje).HasColumnName("KILOMETRAJE").HasColumnType("decimal(10,2)").IsRequired();
         builder.Property(e => e.KilometrosRecorridos).HasColumnName("KILOMETROS_RECORRIDOS").HasColumnType("decimal(10,2)");
+        builder.Property(e => e.KilometrosRecorridosAutocalculado).HasColumnName("KILOMETROS_RECORRIDOS_AUTOCALCULADO").IsRequired();
         builder.Property(e => e.Galones).HasColumnName("GALONES").HasColumnType("decimal(6,2)").IsRequired();
         builder.Property(e => e.CostoTotal).HasColumnName("COSTO_TOTAL").HasColumnType("decimal(8,2)").IsRequired();
 

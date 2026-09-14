@@ -12,6 +12,7 @@ public class CargaResponse
     public DateTime Fecha { get; set; }
     public decimal Kilometraje { get; set; }
     public decimal? KilometrosRecorridos { get; set; }
+    public bool KilometrosRecorridosAutocalculado { get; set; }
     public decimal Galones { get; set; }
     public decimal CostoTotal { get; set; }
     public decimal? PrecioPorGalon { get; set; }
