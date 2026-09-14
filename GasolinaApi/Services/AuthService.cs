@@ -10,6 +10,14 @@ namespace GasolinaApi.Services;
 
 public class AuthService : IAuthService
 {
+    // Hash bcrypt válido de una contraseña fija que nadie usa. Cuando el email no existe,
+    // se verifica contra este hash en vez de saltarse BCrypt.Verify por completo: así el
+    // tiempo de respuesta de un login con email inexistente no se distingue del de un
+    // email real con contraseña incorrecta, cerrando un canal de timing para enumerar
+    // qué emails están registrados.
+    private const string HashDummyParaTiempoConstante =
+        "$2a$11$LOzCWkymN2UuYvr/wSxxSOUrWoU5GZ58mGYy5lLh723TETFLV5x6O";
+
     private readonly AppDbContext _dbContext;
     private readonly ITokenService _tokenService;
 
@@ -24,7 +32,9 @@ public class AuthService : IAuthService
         var usuario = await _dbContext.Usuarios
             .FirstOrDefaultAsync(u => u.Email == request.Email && u.Estado);
 
-        if (usuario is null || !BCrypt.Net.BCrypt.Verify(request.Password, usuario.PasswordHash))
+        var hashContraVerificar = usuario?.PasswordHash ?? HashDummyParaTiempoConstante;
+
+        if (usuario is null || !BCrypt.Net.BCrypt.Verify(request.Password, hashContraVerificar))
         {
             throw new ValidacionException("Email o contraseña incorrectos.");
         }

@@ -30,7 +30,11 @@ public class CargaService : ICargaService
 
         if (desde is not null)
         {
-            consulta = consulta.Where(c => c.Fecha >= desde);
+            // Igual que "hasta" más abajo: se trunca a medianoche para que "desde" se
+            // interprete como el día completo, no como el instante exacto recibido. Sin
+            // esto, una carga guardada a las 00:00:00 del día pedido quedaba excluida
+            // si el caller mandaba una hora distinta de medianoche.
+            consulta = consulta.Where(c => c.Fecha >= desde.Value.Date);
         }
 
         if (hasta is not null)

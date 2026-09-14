@@ -57,7 +57,9 @@ public class EstadisticaService : IEstadisticaService
         // "2026-08-31T00:00:00"), igual que en FormularioCarga.fechaLocalHoy(). Comparar
         // contra un corte basado en UtcNow desalinea el rango en las últimas horas de
         // cada día en husos horarios negativos (ej. Guatemala), así que se usa DateTime.Now.
-        var desde = DateTime.Now.AddMonths(-meses);
+        // Se trunca a medianoche (.Date) para no excluir, según la hora del día en que se
+        // consulta, la propia carga del día límite guardada a las 00:00:00.
+        var desde = DateTime.Now.Date.AddMonths(-meses);
 
         return await ObtenerCargasDelUsuario(usuarioId, vehiculoId)
             .Where(c => c.Fecha >= desde)
