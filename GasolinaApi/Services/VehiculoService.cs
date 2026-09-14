@@ -44,7 +44,7 @@ public class VehiculoService : IVehiculoService
         };
 
         _dbContext.Vehiculos.Add(vehiculo);
-        await _dbContext.SaveChangesAsync();
+        await GuardarValidandoPlacaAsync(request.Placa);
 
         return await ObtenerRespuestaAsync(vehiculo.Id);
     }
@@ -64,9 +64,28 @@ public class VehiculoService : IVehiculoService
         vehiculo.UsuarioModificacion = usuarioId;
         vehiculo.FechaModificacion = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
+        await GuardarValidandoPlacaAsync(request.Placa);
 
         return await ObtenerRespuestaAsync(vehiculo.Id);
+    }
+
+    // ValidarPlacaDisponibleAsync ya revisó la placa antes de llegar aquí, pero esa
+    // comprobación y este SaveChangesAsync son dos round-trips separados sin transacción:
+    // dos requests concurrentes con la misma placa pueden pasar ambos la validación antes
+    // de que cualquiera guarde. El índice único filtrado (UQ_VEHICULO_PLACA_ACTIVA) sigue
+    // siendo la garantía real contra ese caso; esto solo traduce su violación al mismo 400
+    // amigable que ya produce la validación previa, en vez de un 500 genérico.
+    private async Task GuardarValidandoPlacaAsync(string? placa)
+    {
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException excepcion) when (excepcion.InnerException?.Message
+            .Contains("UQ_VEHICULO_PLACA_ACTIVA", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
+        }
     }
 
     public async Task EliminarAsync(int id, int usuarioId)

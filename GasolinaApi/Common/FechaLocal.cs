@@ -10,5 +10,12 @@ namespace GasolinaApi.Common;
 /// </summary>
 public static class FechaLocal
 {
-    public static DateTime Hoy => DateTime.Now.Date;
+    // Esta app es para un solo usuario en Guatemala, que no observa horario de verano, así
+    // que el offset es fijo todo el año. DateTime.Now dependía de la zona horaria
+    // configurada en el sistema operativo del servidor (casi siempre UTC en contenedores/
+    // hosting en la nube), no de la del usuario — exactamente la misma clase de bug que
+    // esta clase existe para evitar, solo que a nivel de host en vez de a nivel de código.
+    private static readonly TimeSpan OffsetGuatemala = TimeSpan.FromHours(-6);
+
+    public static DateTime Hoy => DateTime.UtcNow.Add(OffsetGuatemala).Date;
 }
