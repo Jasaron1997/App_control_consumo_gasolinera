@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { obtenerVehiculos, crearVehiculo, eliminarVehiculo } from '../api/vehiculosApi'
 import { obtenerTiposVehiculo, obtenerTiposCombustible } from '../api/catalogosApi'
+import { useConfirmar } from '../hooks/useConfirmar'
 
 const valoresIniciales = {
   tipoVehiculoId: '',
@@ -17,6 +18,7 @@ export default function Vehiculos() {
   const [valores, setValores] = useState(valoresIniciales)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
+  const { confirmar, dialogo } = useConfirmar()
 
   async function cargarVehiculos() {
     try {
@@ -64,7 +66,7 @@ export default function Vehiculos() {
   }
 
   async function manejarEliminar(id) {
-    if (!window.confirm('¿Eliminar este vehículo? El historial de cargas se conserva.')) return
+    if (!(await confirmar('¿Eliminar este vehículo? El historial de cargas se conserva.'))) return
     setError(null)
     try {
       await eliminarVehiculo(id)
@@ -79,12 +81,17 @@ export default function Vehiculos() {
   }
 
   return (
-    <div className="pagina-vehiculos">
+    <div>
+      {dialogo}
+
       <h1>Vehículos</h1>
 
-      <ul className="lista-vehiculos">
+      <ul className="list-none p-0 mb-6 flex flex-col gap-2">
         {vehiculos.map((vehiculo) => (
-          <li key={vehiculo.id}>
+          <li
+            key={vehiculo.id}
+            className="flex justify-between items-center bg-superficie border border-borde rounded-lg px-3.5 py-2.5"
+          >
             <div>
               <strong>{vehiculo.nombre}</strong>
               <span> · {vehiculo.tipoVehiculoNombre} · {vehiculo.tipoCombustibleNombre}</span>
@@ -99,7 +106,10 @@ export default function Vehiculos() {
 
       <h2>Agregar vehículo</h2>
 
-      <form className="formulario-vehiculo" onSubmit={manejarEnvio}>
+      <form
+        className="flex flex-col gap-3.5 max-w-[420px] bg-superficie border border-borde rounded-[10px] p-5"
+        onSubmit={manejarEnvio}
+      >
         <label>
           Nombre
           <input

@@ -155,17 +155,6 @@ button:disabled {
   padding: 16px;
 }
 
-.formulario-vehiculo {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 420px;
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: 10px;
-  padding: 20px;
-}
-
 .selector-estacion__opciones li button {
   width: 100%;
   text-align: left;
@@ -201,21 +190,3 @@ button:disabled {
   gap: 8px;
 }
 
-.lista-vehiculos {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.lista-vehiculos li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: 8px;
-  padding: 10px 14px;
-}
