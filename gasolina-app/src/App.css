@@ -155,7 +155,6 @@ button:disabled {
   padding: 16px;
 }
 
-.formulario-carga,
 .formulario-vehiculo {
   display: flex;
   flex-direction: column;
@@ -165,11 +164,6 @@ button:disabled {
   border: 1px solid var(--color-borde);
   border-radius: 10px;
   padding: 20px;
-}
-
-.formulario-carga__acciones {
-  display: flex;
-  gap: 8px;
 }
 
 .selector-estacion__opciones li button {

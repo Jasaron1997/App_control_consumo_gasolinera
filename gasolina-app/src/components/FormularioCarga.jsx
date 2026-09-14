@@ -97,7 +97,10 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
   }
 
   return (
-    <form className="formulario-carga" onSubmit={manejarEnvio}>
+    <form
+      className="flex flex-col gap-3.5 max-w-[420px] bg-superficie border border-borde rounded-[10px] p-5"
+      onSubmit={manejarEnvio}
+    >
       <label>
         Vehículo
         <select
@@ -192,7 +195,7 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
 
       {error && <p className="mensaje-error">{error}</p>}
 
-      <div className="formulario-carga__acciones">
+      <div className="flex gap-2">
         <button type="submit" disabled={guardando}>
           {guardando
             ? 'Guardando...'
