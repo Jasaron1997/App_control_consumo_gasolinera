@@ -68,7 +68,7 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
   }
 
   return (
-    <div className="selector-estacion">
+    <div className="relative">
       <label>
         Estación de servicio
         <input
@@ -84,7 +84,7 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
       {errorCreacion && <p className="mensaje-error">{errorCreacion}</p>}
 
       {mostrarOpciones && (
-        <ul className="selector-estacion__opciones">
+        <ul className="absolute top-full left-0 right-0 z-10 mt-1 p-1 list-none bg-superficie border border-borde rounded-lg max-h-[220px] overflow-y-auto">
           {opciones.map((estacion) => (
             <li key={estacion.id}>
               <button type="button" onClick={() => seleccionarOpcion(estacion)}>
