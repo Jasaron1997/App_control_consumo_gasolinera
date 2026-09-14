@@ -1,25 +1,15 @@
 import { useEffect, useState } from 'react'
 import StatCard from '../components/StatCard'
 import GraficaTendencia from '../components/GraficaTendencia'
+import SelectorVehiculo from '../components/SelectorVehiculo'
 import { obtenerResumen, obtenerHistorico } from '../api/estadisticasApi'
-import { obtenerVehiculos } from '../api/vehiculosApi'
-import { setVistaOrigen } from '../api/httpClient'
 
 export default function Dashboard() {
-  const [vehiculos, setVehiculos] = useState([])
   const [vehiculoId, setVehiculoId] = useState('')
   const [resumen, setResumen] = useState(null)
   const [historico, setHistorico] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    setVistaOrigen('Dashboard')
-  }, [])
-
-  useEffect(() => {
-    obtenerVehiculos().then(setVehiculos).catch(() => {})
-  }, [])
 
   useEffect(() => {
     let activo = true
@@ -51,14 +41,7 @@ export default function Dashboard() {
       <div className="pagina-dashboard__encabezado">
         <h1>Dashboard</h1>
 
-        <select value={vehiculoId} onChange={(evento) => setVehiculoId(evento.target.value)}>
-          <option value="">Todos los vehículos</option>
-          {vehiculos.map((vehiculo) => (
-            <option key={vehiculo.id} value={vehiculo.id}>
-              {vehiculo.nombre}
-            </option>
-          ))}
-        </select>
+        <SelectorVehiculo value={vehiculoId} onChange={setVehiculoId} />
       </div>
 
       {error && <p className="mensaje-error">{error}</p>}

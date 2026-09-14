@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs.Requests;
 using GasolinaApi.DTOs.Responses;
@@ -21,12 +22,13 @@ public class VehiculoService : IVehiculoService
         await _dbContext.Vehiculos
             .Where(v => v.Estado && v.UsuarioPropietarioId == usuarioId)
             .OrderBy(v => v.Nombre)
-            .Select(v => ProyectarRespuesta(v))
+            .Select(ProyeccionRespuesta)
             .ToListAsync();
 
     public async Task<VehiculoResponse> CrearAsync(VehiculoRequest request, int usuarioId)
     {
         await ValidarCatalogosAsync(request);
+        await ValidarPlacaDisponibleAsync(request.Placa, idAExcluir: null);
 
         var vehiculo = new Vehiculo
         {
@@ -42,7 +44,7 @@ public class VehiculoService : IVehiculoService
         };
 
         _dbContext.Vehiculos.Add(vehiculo);
-        await _dbContext.SaveChangesAsync();
+        await GuardarValidandoPlacaAsync(request.Placa);
 
         return await ObtenerRespuestaAsync(vehiculo.Id);
     }
@@ -52,6 +54,7 @@ public class VehiculoService : IVehiculoService
         var vehiculo = await ObtenerPropioAsync(id, usuarioId);
 
         await ValidarCatalogosAsync(request);
+        await ValidarPlacaDisponibleAsync(request.Placa, idAExcluir: vehiculo.Id);
 
         vehiculo.TipoVehiculoId = request.TipoVehiculoId;
         vehiculo.TipoCombustibleId = request.TipoCombustibleId;
@@ -61,9 +64,28 @@ public class VehiculoService : IVehiculoService
         vehiculo.UsuarioModificacion = usuarioId;
         vehiculo.FechaModificacion = DateTime.UtcNow;
 
-        await _dbContext.SaveChangesAsync();
+        await GuardarValidandoPlacaAsync(request.Placa);
 
         return await ObtenerRespuestaAsync(vehiculo.Id);
+    }
+
+    // ValidarPlacaDisponibleAsync ya revisó la placa antes de llegar aquí, pero esa
+    // comprobación y este SaveChangesAsync son dos round-trips separados sin transacción:
+    // dos requests concurrentes con la misma placa pueden pasar ambos la validación antes
+    // de que cualquiera guarde. El índice único filtrado (UQ_VEHICULO_PLACA_ACTIVA) sigue
+    // siendo la garantía real contra ese caso; esto solo traduce su violación al mismo 400
+    // amigable que ya produce la validación previa, en vez de un 500 genérico.
+    private async Task GuardarValidandoPlacaAsync(string? placa)
+    {
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException excepcion) when (excepcion.InnerException?.Message
+            .Contains("UQ_VEHICULO_PLACA_ACTIVA", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
+        }
     }
 
     public async Task EliminarAsync(int id, int usuarioId)
@@ -106,13 +128,33 @@ public class VehiculoService : IVehiculoService
         }
     }
 
+    private async Task ValidarPlacaDisponibleAsync(string? placa, int? idAExcluir)
+    {
+        if (string.IsNullOrWhiteSpace(placa))
+        {
+            return;
+        }
+
+        var placaEnUso = await _dbContext.Vehiculos
+            .AnyAsync(v => v.Estado && v.Placa == placa && v.Id != idAExcluir);
+
+        if (placaEnUso)
+        {
+            throw new ValidacionException($"Ya existe un vehículo activo con la placa {placa}.");
+        }
+    }
+
     private async Task<VehiculoResponse> ObtenerRespuestaAsync(int id) =>
         await _dbContext.Vehiculos
             .Where(v => v.Id == id)
-            .Select(v => ProyectarRespuesta(v))
+            .Select(ProyeccionRespuesta)
             .FirstAsync();
 
-    private static VehiculoResponse ProyectarRespuesta(Vehiculo v) => new()
+    // Debe ser una Expression<Func<>> (no un método normal): así EF Core la traduce
+    // a SQL con los JOIN necesarios. Si esto fuera una llamada a método, EF Core no
+    // podría traducirla, traería el Vehiculo sin sus relaciones, y "v.TipoVehiculo!.Nombre"
+    // reventaría en tiempo de ejecución con NullReferenceException en cada request.
+    private static readonly Expression<Func<Vehiculo, VehiculoResponse>> ProyeccionRespuesta = v => new VehiculoResponse
     {
         Id = v.Id,
         Nombre = v.Nombre,

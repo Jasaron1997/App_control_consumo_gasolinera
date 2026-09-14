@@ -6,11 +6,21 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
   const [opciones, setOpciones] = useState([])
   const [mostrarOpciones, setMostrarOpciones] = useState(false)
   const [creando, setCreando] = useState(false)
+  const [errorCreacion, setErrorCreacion] = useState(null)
   const temporizadorRef = useRef(null)
+  const idSolicitudRef = useRef(0)
 
   useEffect(() => {
     setTexto(estacionSeleccionada?.nombre ?? '')
   }, [estacionSeleccionada])
+
+  useEffect(() => () => {
+    clearTimeout(temporizadorRef.current)
+    // Invalida cualquier búsqueda en vuelo: su respuesta, al llegar, ya no coincidirá
+    // con idSolicitudRef.current y el guard existente la descartará en vez de llamar
+    // setOpciones/setMostrarOpciones sobre un componente desmontado.
+    idSolicitudRef.current += 1
+  }, [])
 
   function manejarCambioTexto(valor) {
     setTexto(valor)
@@ -24,12 +34,16 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
     }
 
     temporizadorRef.current = setTimeout(async () => {
+      const idSolicitud = ++idSolicitudRef.current
+
       try {
         const resultados = await buscarEstacionesServicio(valor)
+        // Descarta la respuesta si ya salió una búsqueda más nueva mientras esta estaba en vuelo.
+        if (idSolicitud !== idSolicitudRef.current) return
         setOpciones(resultados)
         setMostrarOpciones(true)
       } catch {
-        setOpciones([])
+        if (idSolicitud === idSolicitudRef.current) setOpciones([])
       }
     }, 300)
   }
@@ -42,9 +56,12 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
 
   async function crearNuevaEstacion() {
     setCreando(true)
+    setErrorCreacion(null)
     try {
-      const nuevaEstacion = await crearEstacionServicio({ nombre: texto })
+      const nuevaEstacion = await crearEstacionServicio({ nombre: texto.trim() })
       seleccionarOpcion(nuevaEstacion)
+    } catch {
+      setErrorCreacion('No se pudo crear la estación. Intenta de nuevo.')
     } finally {
       setCreando(false)
     }
@@ -63,6 +80,8 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
           onBlur={() => setTimeout(() => setMostrarOpciones(false), 150)}
         />
       </label>
+
+      {errorCreacion && <p className="mensaje-error">{errorCreacion}</p>}
 
       {mostrarOpciones && (
         <ul className="selector-estacion__opciones">

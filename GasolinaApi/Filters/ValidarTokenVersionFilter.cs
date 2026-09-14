@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using GasolinaApi.Auth;
 using GasolinaApi.Data;
+using GasolinaApi.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,10 +17,12 @@ namespace GasolinaApi.Filters;
 public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<ValidarTokenVersionFilter> _logger;
 
-    public ValidarTokenVersionFilter(AppDbContext dbContext)
+    public ValidarTokenVersionFilter(AppDbContext dbContext, ILogger<ValidarTokenVersionFilter> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task OnAuthorizationAsync(AuthorizationFilterContext contexto)
@@ -39,18 +43,52 @@ public class ValidarTokenVersionFilter : IAsyncAuthorizationFilter
 
         if (tokenVersionClaim is null || !int.TryParse(tokenVersionClaim, out var tokenVersion))
         {
-            contexto.Result = new UnauthorizedResult();
+            const string mensaje = "Token sin TokenVersion válido.";
+            contexto.Result = ResultadoNoAutorizado(mensaje);
+            await RegistrarRechazoAsync(contexto, usuarioId, mensaje);
             return;
         }
 
+        // Filtra también por Estado: si el usuario fue desactivado, sus JWT ya
+        // emitidos deben dejar de servir de inmediato, igual que en el resto de
+        // la app donde ESTADO=0 significa "ya no existe" para efectos prácticos.
         var tokenVersionActual = await _dbContext.Usuarios
-            .Where(u => u.Id == usuarioId)
+            .Where(u => u.Id == usuarioId && u.Estado)
             .Select(u => (int?)u.TokenVersion)
             .FirstOrDefaultAsync();
 
         if (tokenVersionActual is null || tokenVersionActual.Value != tokenVersion)
         {
-            contexto.Result = new UnauthorizedResult();
+            const string mensaje = "La sesión ya no es válida. Inicia sesión de nuevo.";
+            contexto.Result = ResultadoNoAutorizado(mensaje);
+            await RegistrarRechazoAsync(contexto, usuarioId, "TokenVersion desactualizado (sesión invalidada).");
+        }
+    }
+
+    // Sin esto, el 401 sale con el ProblemDetails genérico de ASP.NET Core en vez del
+    // mismo sobre RespuestaApi<T> que usa el resto de la API (incluido el 401 de
+    // credenciales inválidas en el login, que si pasa por ManejoErroresMiddleware).
+    private static UnauthorizedObjectResult ResultadoNoAutorizado(string mensaje) =>
+        new(RespuestaApi<object>.Error(mensaje));
+
+    // Este filtro corta la solicitud con 401 antes de que AuditoriaActionFilter (un
+    // ActionFilter) llegue a ejecutarse, así que sin esto un token viejo/invalidado
+    // rechazado aquí no dejaría ningún rastro en TB_LOG_AUDITORIA.
+    private async Task RegistrarRechazoAsync(AuthorizationFilterContext contexto, int usuarioId, string mensaje)
+    {
+        try
+        {
+            var descriptor = contexto.ActionDescriptor as ControllerActionDescriptor;
+
+            var log = AuditoriaHelper.CrearLog(contexto.HttpContext, descriptor, usuarioId,
+                exitoso: false, mensajeError: mensaje);
+
+            _dbContext.LogsAuditoria.Add(log);
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception excepcionAuditoria)
+        {
+            AuditoriaHelper.RegistrarFalloDeAuditoria(_logger, excepcionAuditoria, "rechazo de TokenVersion");
         }
     }
 }

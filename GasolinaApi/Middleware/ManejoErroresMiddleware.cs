@@ -7,6 +7,11 @@ namespace GasolinaApi.Middleware;
 
 public class ManejoErroresMiddleware
 {
+    private static readonly JsonSerializerOptions OpcionesSerializacion = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly RequestDelegate _siguiente;
     private readonly ILogger<ManejoErroresMiddleware> _logger;
 
@@ -48,9 +53,6 @@ public class ManejoErroresMiddleware
         contexto.Response.ContentType = "application/json";
         contexto.Response.StatusCode = (int)codigoHttp;
 
-        await contexto.Response.WriteAsync(JsonSerializer.Serialize(respuesta, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        }));
+        await contexto.Response.WriteAsync(JsonSerializer.Serialize(respuesta, OpcionesSerializacion));
     }
 }

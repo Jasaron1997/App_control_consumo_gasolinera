@@ -15,4 +15,17 @@ public static class ClaimsPrincipalExtensions
 
         return usuarioId;
     }
+
+    /// <summary>Como ObtenerUsuarioId, pero sin lanzar: para código de auditoría que debe
+    /// funcionar igual con o sin usuario autenticado (ej. un intento de login fallido).</summary>
+    public static int? ObtenerUsuarioIdOpcional(this ClaimsPrincipal usuario)
+    {
+        if (usuario.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        var valor = usuario.FindFirstValue(ClaimsGasolina.UsuarioId);
+        return int.TryParse(valor, out var usuarioId) ? usuarioId : null;
+    }
 }

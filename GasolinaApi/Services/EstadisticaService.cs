@@ -1,3 +1,4 @@
+using GasolinaApi.Common;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs.Responses;
 using GasolinaApi.Models;
@@ -17,23 +18,30 @@ public class EstadisticaService : IEstadisticaService
 
     public async Task<ResumenEstadisticasResponse> ObtenerResumenAsync(int usuarioId, int? vehiculoId)
     {
-        var cargas = ObtenerCargasDelUsuario(usuarioId, vehiculoId);
+        // Se materializa una sola vez y el resto se calcula en memoria, en vez de
+        // seis round-trips separados a SQL Server para los distintos agregados.
+        var cargas = await ObtenerCargasDelUsuario(usuarioId, vehiculoId)
+            .Select(c => new { c.Fecha, c.KilometrosRecorridos, c.Galones, c.CostoTotal })
+            .ToListAsync();
 
-        var cargasConRecorrido = cargas.Where(c => c.KilometrosRecorridos != null && c.Galones != 0);
+        var cargasConRecorrido = cargas.Where(c => c.KilometrosRecorridos != null && c.Galones != 0).ToList();
 
-        var rendimientoPromedio = await cargasConRecorrido
-            .Select(c => c.KilometrosRecorridos!.Value / c.Galones)
-            .AverageAsyncSiHayDatos();
+        var sumaCostoTotal = cargasConRecorrido.Sum(c => c.CostoTotal);
+        var sumaKilometros = cargasConRecorrido.Sum(c => c.KilometrosRecorridos!.Value);
+        var sumaGalones = cargasConRecorrido.Sum(c => c.Galones);
 
-        var sumaCostoTotal = await cargasConRecorrido.SumAsync(c => (decimal?)c.CostoTotal) ?? 0m;
-        var sumaKilometros = await cargasConRecorrido.SumAsync(c => (decimal?)c.KilometrosRecorridos) ?? 0m;
+        // Promedio ponderado (suma de km / suma de galones), no promedio de razones:
+        // el promedio de razones le da el mismo peso a una carga de 4km que a una de
+        // 400km, distorsionando el rendimiento real cuando el tamaño de las cargas
+        // varía. Es el mismo criterio que ya usa CostoPorKm un poco más abajo.
+        var rendimientoPromedio = sumaGalones == 0 ? (decimal?)null : sumaKilometros / sumaGalones;
         var costoPorKm = sumaKilometros == 0 ? (decimal?)null : sumaCostoTotal / sumaKilometros;
 
         var (inicioMes, inicioMesSiguiente) = ObtenerRangoMesActual();
-        var cargasDelMes = cargas.Where(c => c.Fecha >= inicioMes && c.Fecha < inicioMesSiguiente);
+        var cargasDelMes = cargas.Where(c => c.Fecha >= inicioMes && c.Fecha < inicioMesSiguiente).ToList();
 
-        var gastoMes = await cargasDelMes.SumAsync(c => (decimal?)c.CostoTotal) ?? 0m;
-        var kmRecorridosMes = await cargasDelMes.SumAsync(c => (decimal?)c.KilometrosRecorridos) ?? 0m;
+        var gastoMes = cargasDelMes.Sum(c => c.CostoTotal);
+        var kmRecorridosMes = cargasDelMes.Sum(c => c.KilometrosRecorridos ?? 0);
 
         return new ResumenEstadisticasResponse
         {
@@ -46,7 +54,7 @@ public class EstadisticaService : IEstadisticaService
 
     public async Task<List<HistoricoPuntoResponse>> ObtenerHistoricoAsync(int usuarioId, int? vehiculoId, int meses)
     {
-        var desde = DateTime.UtcNow.AddMonths(-meses);
+        var desde = FechaLocal.Hoy.AddMonths(-meses);
 
         return await ObtenerCargasDelUsuario(usuarioId, vehiculoId)
             .Where(c => c.Fecha >= desde)
@@ -76,18 +84,9 @@ public class EstadisticaService : IEstadisticaService
 
     private static (DateTime Inicio, DateTime InicioSiguiente) ObtenerRangoMesActual()
     {
-        var ahora = DateTime.UtcNow;
-        var inicioMes = new DateTime(ahora.Year, ahora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var hoy = FechaLocal.Hoy;
+        var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Unspecified);
         var inicioMesSiguiente = inicioMes.AddMonths(1);
         return (inicioMes, inicioMesSiguiente);
-    }
-}
-
-internal static class QueryableExtensions
-{
-    public static async Task<decimal?> AverageAsyncSiHayDatos(this IQueryable<decimal> consulta)
-    {
-        var hayDatos = await consulta.AnyAsync();
-        return hayDatos ? await consulta.AverageAsync() : null;
     }
 }

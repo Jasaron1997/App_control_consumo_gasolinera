@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using GasolinaApi.Common;
 using GasolinaApi.Data;
 using GasolinaApi.DTOs.Requests;
 using GasolinaApi.DTOs.Responses;
@@ -29,59 +31,32 @@ public class CargaService : ICargaService
 
         if (desde is not null)
         {
-            consulta = consulta.Where(c => c.Fecha >= desde);
+            // Igual que "hasta" más abajo: se trunca a medianoche para que "desde" se
+            // interprete como el día completo, no como el instante exacto recibido. Sin
+            // esto, una carga guardada a las 00:00:00 del día pedido quedaba excluida
+            // si el caller mandaba una hora distinta de medianoche.
+            consulta = consulta.Where(c => c.Fecha >= desde.Value.Date);
         }
 
         if (hasta is not null)
         {
-            consulta = consulta.Where(c => c.Fecha <= hasta);
+            // Intervalo semiabierto: "hasta" debe incluir todo ese día, no solo hasta
+            // su medianoche — de lo contrario una carga con hora distinta de 00:00
+            // quedaría excluida aunque su fecha coincida con el límite pedido.
+            consulta = consulta.Where(c => c.Fecha < hasta.Value.Date.AddDays(1));
         }
 
         return await consulta
             .OrderByDescending(c => c.Fecha)
-            .Select(c => ProyectarRespuesta(c))
+            .Select(ProyeccionRespuesta)
             .ToListAsync();
     }
 
     public async Task<CargaResponse> CrearAsync(CrearCargaRequest request, int usuarioId)
     {
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-
-        var fecha = request.Fecha ?? DateTime.UtcNow;
-        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
-
-        if (request.TipoCombustibleId is not null)
-        {
-            var tipoCombustibleExiste = await _dbContext.TiposCombustible
-                .AnyAsync(t => t.Id == tipoCombustibleId && t.Estado);
-
-            if (!tipoCombustibleExiste)
-            {
-                throw new ValidacionException($"No se encontró el tipo de combustible con id {tipoCombustibleId}.");
-            }
-        }
-
-        if (request.EstacionServicioId is not null)
-        {
-            var estacionExiste = await _dbContext.EstacionesServicio
-                .AnyAsync(e => e.Id == request.EstacionServicioId && e.Estado);
-
-            if (!estacionExiste)
-            {
-                throw new ValidacionException($"No se encontró la estación de servicio con id {request.EstacionServicioId}.");
-            }
-        }
-
-        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: null);
-
-        if (cargaAnterior is not null && request.Kilometraje < cargaAnterior.Kilometraje)
-        {
-            throw new ValidacionException(
-                $"El kilometraje ({request.Kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
-        }
-
-        var kilometrosRecorridos = request.KilometrosRecorridos
-            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+            await PrepararCambiosAsync(request, vehiculo, FechaLocal.Hoy, idAExcluir: null);
 
         var carga = new Carga
         {
@@ -108,25 +83,15 @@ public class CargaService : ICargaService
     {
         var carga = await ObtenerCargaPropiaAsync(id, usuarioId);
         var vehiculo = await ObtenerVehiculoPropioAsync(request.VehiculoId, usuarioId);
-
-        var fecha = request.Fecha ?? carga.Fecha;
-        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
-
-        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir: carga.Id);
-
-        if (cargaAnterior is not null && request.Kilometraje < cargaAnterior.Kilometraje)
-        {
-            throw new ValidacionException(
-                $"El kilometraje ({request.Kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
-        }
+        var (fecha, tipoCombustibleId, kilometrosRecorridos) =
+            await PrepararCambiosAsync(request, vehiculo, carga.Fecha, idAExcluir: carga.Id);
 
         carga.VehiculoId = vehiculo.Id;
         carga.TipoCombustibleId = tipoCombustibleId;
         carga.EstacionServicioId = request.EstacionServicioId;
         carga.Fecha = fecha;
         carga.Kilometraje = request.Kilometraje;
-        carga.KilometrosRecorridos = request.KilometrosRecorridos
-            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+        carga.KilometrosRecorridos = kilometrosRecorridos;
         carga.Galones = request.Galones;
         carga.CostoTotal = request.CostoTotal;
         carga.UsuarioModificacion = usuarioId;
@@ -135,6 +100,68 @@ public class CargaService : ICargaService
         await _dbContext.SaveChangesAsync();
 
         return await ObtenerRespuestaAsync(carga.Id);
+    }
+
+    // Resuelve fecha/combustible, valida combustible+estación, y calcula (o valida)
+    // KilometrosRecorridos contra las cargas vecinas — compartido por Crear y Actualizar,
+    // que antes repetían esta misma secuencia casi palabra por palabra.
+    private async Task<(DateTime Fecha, int TipoCombustibleId, decimal? KilometrosRecorridos)> PrepararCambiosAsync(
+        CrearCargaRequest request, Vehiculo vehiculo, DateTime fechaPorDefecto, int? idAExcluir)
+    {
+        var fecha = request.Fecha ?? fechaPorDefecto;
+        var tipoCombustibleId = request.TipoCombustibleId ?? vehiculo.TipoCombustibleId;
+
+        await ValidarCombustibleYEstacionAsync(request.TipoCombustibleId, tipoCombustibleId, request.EstacionServicioId);
+
+        var cargaAnterior = await ObtenerCargaAnteriorAsync(vehiculo.Id, fecha, idAExcluir);
+        var cargaPosterior = await ObtenerCargaPosteriorAsync(vehiculo.Id, fecha, idAExcluir);
+
+        ValidarSecuenciaKilometraje(request.Kilometraje, cargaAnterior, cargaPosterior);
+
+        var kilometrosRecorridos = request.KilometrosRecorridos
+            ?? (cargaAnterior is null ? null : request.Kilometraje - cargaAnterior.Kilometraje);
+
+        return (fecha, tipoCombustibleId, kilometrosRecorridos);
+    }
+
+    private async Task ValidarCombustibleYEstacionAsync(int? tipoCombustibleIdSolicitado, int tipoCombustibleId, int? estacionServicioId)
+    {
+        if (tipoCombustibleIdSolicitado is not null)
+        {
+            var tipoCombustibleExiste = await _dbContext.TiposCombustible
+                .AnyAsync(t => t.Id == tipoCombustibleId && t.Estado);
+
+            if (!tipoCombustibleExiste)
+            {
+                throw new ValidacionException($"No se encontró el tipo de combustible con id {tipoCombustibleId}.");
+            }
+        }
+
+        if (estacionServicioId is not null)
+        {
+            var estacionExiste = await _dbContext.EstacionesServicio
+                .AnyAsync(e => e.Id == estacionServicioId && e.Estado);
+
+            if (!estacionExiste)
+            {
+                throw new ValidacionException($"No se encontró la estación de servicio con id {estacionServicioId}.");
+            }
+        }
+    }
+
+    private static void ValidarSecuenciaKilometraje(decimal kilometraje, Carga? cargaAnterior, Carga? cargaPosterior)
+    {
+        if (cargaAnterior is not null && kilometraje < cargaAnterior.Kilometraje)
+        {
+            throw new ValidacionException(
+                $"El kilometraje ({kilometraje}) no puede ser menor al de la carga anterior ({cargaAnterior.Kilometraje}).");
+        }
+
+        if (cargaPosterior is not null && kilometraje > cargaPosterior.Kilometraje)
+        {
+            throw new ValidacionException(
+                $"El kilometraje ({kilometraje}) no puede ser mayor al de una carga posterior ya registrada ({cargaPosterior.Kilometraje}).");
+        }
     }
 
     public async Task EliminarAsync(int id, int usuarioId)
@@ -175,19 +202,38 @@ public class CargaService : ICargaService
         return carga;
     }
 
+    // Desempata por Id cuando dos cargas caen en la misma Fecha (ej. el formulario solo
+    // envía fecha sin hora, así que varias cargas del mismo día quedan a las 00:00:00Z).
     private async Task<Carga?> ObtenerCargaAnteriorAsync(int vehiculoId, DateTime fecha, int? idAExcluir) =>
         await _dbContext.Cargas
-            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Fecha < fecha && c.Id != idAExcluir)
+            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Id != idAExcluir &&
+                (c.Fecha < fecha || (c.Fecha == fecha && c.Id < (idAExcluir ?? int.MaxValue))))
             .OrderByDescending(c => c.Fecha)
+            .ThenByDescending(c => c.Id)
+            .FirstOrDefaultAsync();
+
+    // Al crear (idAExcluir=null) la carga nueva se considera la más reciente del día:
+    // ninguna carga existente en la misma Fecha debe contar como "posterior" a ella,
+    // por eso el fallback es int.MaxValue (ningún Id real lo supera) y no 0.
+    private async Task<Carga?> ObtenerCargaPosteriorAsync(int vehiculoId, DateTime fecha, int? idAExcluir) =>
+        await _dbContext.Cargas
+            .Where(c => c.Estado && c.VehiculoId == vehiculoId && c.Id != idAExcluir &&
+                (c.Fecha > fecha || (c.Fecha == fecha && c.Id > (idAExcluir ?? int.MaxValue))))
+            .OrderBy(c => c.Fecha)
+            .ThenBy(c => c.Id)
             .FirstOrDefaultAsync();
 
     private async Task<CargaResponse> ObtenerRespuestaAsync(int id) =>
         await _dbContext.Cargas
             .Where(c => c.Id == id)
-            .Select(c => ProyectarRespuesta(c))
+            .Select(ProyeccionRespuesta)
             .FirstAsync();
 
-    private static CargaResponse ProyectarRespuesta(Carga c) => new()
+    // Debe ser una Expression<Func<>> (no un método normal): así EF Core la traduce
+    // a SQL con los JOIN necesarios. Si esto fuera una llamada a método, EF Core no
+    // podría traducirla, traería el Carga sin sus relaciones, y "c.Vehiculo!.Nombre"
+    // reventaría en tiempo de ejecución con NullReferenceException en cada request.
+    private static readonly Expression<Func<Carga, CargaResponse>> ProyeccionRespuesta = c => new CargaResponse
     {
         Id = c.Id,
         VehiculoId = c.VehiculoId,

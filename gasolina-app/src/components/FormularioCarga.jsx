@@ -1,14 +1,27 @@
 import { useState } from 'react'
 import SelectorEstacion from './SelectorEstacion'
 
-const valoresIniciales = {
-  vehiculoId: '',
-  tipoCombustibleId: '',
-  fecha: new Date().toISOString().slice(0, 10),
-  kilometraje: '',
-  kilometrosRecorridos: '',
-  galones: '',
-  costoTotal: ''
+// new Date().toISOString() da la fecha en UTC: entre las 18:00 y medianoche hora
+// de Guatemala (UTC-6) ya sería "mañana" en UTC. Se arma el string con los
+// componentes de fecha LOCALES para que el valor por defecto sea el día real.
+function fechaLocalHoy() {
+  const ahora = new Date()
+  const anio = ahora.getFullYear()
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0')
+  const dia = String(ahora.getDate()).padStart(2, '0')
+  return `${anio}-${mes}-${dia}`
+}
+
+function valoresIniciales() {
+  return {
+    vehiculoId: '',
+    tipoCombustibleId: '',
+    fecha: fechaLocalHoy(),
+    kilometraje: '',
+    kilometrosRecorridos: '',
+    galones: '',
+    costoTotal: ''
+  }
 }
 
 export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar, guardando }) {
@@ -46,7 +59,7 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
         costoTotal: Number(valores.costoTotal)
       })
 
-      setValores(valoresIniciales)
+      setValores(valoresIniciales())
       setEstacionSeleccionada(null)
     } catch (error) {
       setError(error.response?.data?.mensaje ?? 'No se pudo registrar la carga.')

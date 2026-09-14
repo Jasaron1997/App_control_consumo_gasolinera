@@ -17,6 +17,16 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
     ?? throw new InvalidOperationException("Falta la sección 'Jwt' en la configuración.");
 
+// appsettings.json ya trae la sección 'Jwt' presente (con Secret vacío como placeholder),
+// así que el throw de arriba nunca dispara por un Secret faltante: se valida aparte,
+// para fallar rápido con un mensaje claro en vez de una excepción críptica de
+// Microsoft.IdentityModel (IDX10703) en la primera solicitud autenticada.
+if (string.IsNullOrWhiteSpace(jwtSettings.Secret))
+{
+    throw new InvalidOperationException(
+        "Falta configurar 'Jwt:Secret'. En local, usa: dotnet user-secrets set \"Jwt:Secret\" \"<clave>\".");
+}
+
 var origenesPermitidos = builder.Configuration.GetSection("Cors:OrigenesPermitidos").Get<string[]>() ?? [];
 
 // ---- Base de datos (Database First: el esquema ya existe, no se generan migraciones) ----
@@ -68,6 +78,12 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<AuditoriaActionFilter>();
     options.Filters.Add<ValidarTokenVersionFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    // El 400 automático de [ApiController] corre antes que cualquier ActionFilter,
+    // así que reemplaza la respuesta para usar el sobre RespuestaApi<T> y auditar el rechazo.
+    options.InvalidModelStateResponseFactory = ValidacionModeloResponseFactory.Crear;
 });
 
 builder.Services.AddEndpointsApiExplorer();

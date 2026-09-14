@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { obtenerVehiculos, crearVehiculo, eliminarVehiculo } from '../api/vehiculosApi'
 import { obtenerTiposVehiculo, obtenerTiposCombustible } from '../api/catalogosApi'
-import { setVistaOrigen } from '../api/httpClient'
 
 const valoresIniciales = {
   tipoVehiculoId: '',
@@ -18,10 +17,6 @@ export default function Vehiculos() {
   const [valores, setValores] = useState(valoresIniciales)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
-
-  useEffect(() => {
-    setVistaOrigen('Vehiculos')
-  }, [])
 
   async function cargarVehiculos() {
     const datos = await obtenerVehiculos()
@@ -52,18 +47,32 @@ export default function Vehiculos() {
         tanqueCapacidadGalones: valores.tanqueCapacidadGalones ? Number(valores.tanqueCapacidadGalones) : null
       })
       setValores(valoresIniciales)
-      await cargarVehiculos()
     } catch (error) {
       setError(error.response?.data?.mensaje ?? 'No se pudo guardar el vehículo.')
-    } finally {
       setGuardando(false)
+      return
     }
+
+    setGuardando(false)
+    // El vehículo ya se guardó; si esta recarga falla no es un error de guardado,
+    // el usuario simplemente no lo verá listado hasta la próxima recarga.
+    cargarVehiculos().catch(() => {})
   }
 
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar este vehículo? El historial de cargas se conserva.')) return
-    await eliminarVehiculo(id)
-    await cargarVehiculos()
+    setError(null)
+    try {
+      await eliminarVehiculo(id)
+    } catch {
+      setError('No se pudo eliminar el vehículo. Intenta de nuevo.')
+      return
+    }
+
+    // El vehículo ya se eliminó; si esta recarga falla no es un error de
+    // eliminación, el usuario simplemente no verá la lista actualizada hasta
+    // la próxima recarga.
+    cargarVehiculos().catch(() => {})
   }
 
   return (

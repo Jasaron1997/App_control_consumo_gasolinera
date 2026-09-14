@@ -8,14 +8,12 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
+import { formatearFechaCorta } from '../utils/fecha'
 
 export default function GraficaTendencia({ datos }) {
   const datosFormateados = datos.map((punto) => ({
     ...punto,
-    fechaEtiqueta: new Date(punto.fecha).toLocaleDateString('es-GT', {
-      day: '2-digit',
-      month: 'short'
-    })
+    fechaEtiqueta: formatearFechaCorta(punto.fecha)
   }))
 
   return (

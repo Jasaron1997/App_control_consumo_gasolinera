@@ -1,29 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { obtenerCargas, eliminarCarga } from '../api/cargasApi'
-import { obtenerVehiculos } from '../api/vehiculosApi'
-import { setVistaOrigen } from '../api/httpClient'
+import SelectorVehiculo from '../components/SelectorVehiculo'
+import { formatearFecha } from '../utils/fecha'
 
 export default function Historial() {
-  const [vehiculos, setVehiculos] = useState([])
   const [vehiculoId, setVehiculoId] = useState('')
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState(null)
+  const idSolicitudRef = useRef(0)
 
-  useEffect(() => {
-    setVistaOrigen('Historial')
-  }, [])
-
-  useEffect(() => {
-    obtenerVehiculos().then(setVehiculos).catch(() => {})
-  }, [])
-
+  // idSolicitudRef descarta una respuesta que llega fuera de orden (ej. el usuario
+  // cambia el filtro de vehículo dos veces rápido y la primera solicitud resuelve
+  // después de la segunda), igual que el patrón ya usado en SelectorEstacion.
   async function cargarHistorial() {
+    const idSolicitud = ++idSolicitudRef.current
     setCargando(true)
     try {
       const datos = await obtenerCargas(vehiculoId ? { vehiculoId } : {})
+      if (idSolicitud !== idSolicitudRef.current) return
       setCargas(datos)
+      setError(null)
+    } catch {
+      if (idSolicitud === idSolicitudRef.current) {
+        setError('No se pudo cargar el historial. Intenta de nuevo.')
+      }
     } finally {
-      setCargando(false)
+      if (idSolicitud === idSolicitudRef.current) {
+        setCargando(false)
+      }
     }
   }
 
@@ -34,7 +39,14 @@ export default function Historial() {
 
   async function manejarEliminar(id) {
     if (!window.confirm('¿Eliminar esta carga?')) return
-    await eliminarCarga(id)
+    setError(null)
+    try {
+      await eliminarCarga(id)
+    } catch {
+      setError('No se pudo eliminar la carga. Intenta de nuevo.')
+      return
+    }
+
     cargarHistorial()
   }
 
@@ -43,15 +55,10 @@ export default function Historial() {
       <div className="pagina-historial__encabezado">
         <h1>Historial de cargas</h1>
 
-        <select value={vehiculoId} onChange={(evento) => setVehiculoId(evento.target.value)}>
-          <option value="">Todos los vehículos</option>
-          {vehiculos.map((vehiculo) => (
-            <option key={vehiculo.id} value={vehiculo.id}>
-              {vehiculo.nombre}
-            </option>
-          ))}
-        </select>
+        <SelectorVehiculo value={vehiculoId} onChange={setVehiculoId} />
       </div>
+
+      {error && <p className="mensaje-error">{error}</p>}
 
       {cargando ? (
         <p>Cargando...</p>
@@ -76,7 +83,7 @@ export default function Historial() {
           <tbody>
             {cargas.map((carga) => (
               <tr key={carga.id}>
-                <td>{new Date(carga.fecha).toLocaleDateString('es-GT')}</td>
+                <td>{formatearFecha(carga.fecha)}</td>
                 <td>{carga.vehiculoNombre}</td>
                 <td>{carga.tipoCombustibleNombre}</td>
                 <td>{carga.estacionServicioNombre ?? '—'}</td>
