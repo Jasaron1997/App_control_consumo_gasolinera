@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --color-texto: #1f2430;
   --color-texto-sutil: #6b7280;
@@ -19,6 +21,19 @@
   }
 }
 
+/* Reutiliza las variables de arriba como tokens de Tailwind (bg-fondo,
+   text-texto, border-borde, bg-acento/text-acento, etc.) en vez de
+   duplicar el tema — el claro/oscuro sigue resolviendo por
+   prefers-color-scheme exactamente igual que antes. */
+@theme {
+  --color-texto: var(--color-texto);
+  --color-texto-sutil: var(--color-texto-sutil);
+  --color-fondo: var(--color-fondo);
+  --color-superficie: var(--color-superficie);
+  --color-borde: var(--color-borde);
+  --color-acento: var(--color-acento);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -34,9 +49,23 @@ body {
   min-height: 100svh;
 }
 
-h1,
+/* El preflight de Tailwind resetea font-size/font-weight de los títulos a
+   "inherit" a propósito (todo el estilo debería venir de utilidades). Esta
+   regla es transicional: evita que TODAS las páginas se vean rotas mientras
+   se migran una por una a clases de Tailwind (ver plan de migración). Se
+   borra cuando el último h1/h2 tenga su propia utilidad de tamaño de letra
+   explícita (confirmar con grep -rn "<h1" src y grep -rn "<h2" src antes
+   de borrarla). */
+h1 {
+  color: var(--color-texto);
+  font-size: 1.875rem;
+  font-weight: 700;
+}
+
 h2 {
   color: var(--color-texto);
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 button {
