@@ -25,12 +25,15 @@ public class EstadisticaService : IEstadisticaService
 
         var cargasConRecorrido = cargas.Where(c => c.KilometrosRecorridos != null && c.Galones != 0).ToList();
 
-        var rendimientoPromedio = cargasConRecorrido.Count == 0
-            ? (decimal?)null
-            : cargasConRecorrido.Average(c => c.KilometrosRecorridos!.Value / c.Galones);
-
         var sumaCostoTotal = cargasConRecorrido.Sum(c => c.CostoTotal);
         var sumaKilometros = cargasConRecorrido.Sum(c => c.KilometrosRecorridos!.Value);
+        var sumaGalones = cargasConRecorrido.Sum(c => c.Galones);
+
+        // Promedio ponderado (suma de km / suma de galones), no promedio de razones:
+        // el promedio de razones le da el mismo peso a una carga de 4km que a una de
+        // 400km, distorsionando el rendimiento real cuando el tamaño de las cargas
+        // varía. Es el mismo criterio que ya usa CostoPorKm un poco más abajo.
+        var rendimientoPromedio = sumaGalones == 0 ? (decimal?)null : sumaKilometros / sumaGalones;
         var costoPorKm = sumaKilometros == 0 ? (decimal?)null : sumaCostoTotal / sumaKilometros;
 
         var (inicioMes, inicioMesSiguiente) = ObtenerRangoMesActual();

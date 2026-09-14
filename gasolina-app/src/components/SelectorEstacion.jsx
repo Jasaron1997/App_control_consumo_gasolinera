@@ -58,7 +58,7 @@ export default function SelectorEstacion({ estacionSeleccionada, onSeleccionar }
     setCreando(true)
     setErrorCreacion(null)
     try {
-      const nuevaEstacion = await crearEstacionServicio({ nombre: texto })
+      const nuevaEstacion = await crearEstacionServicio({ nombre: texto.trim() })
       seleccionarOpcion(nuevaEstacion)
     } catch {
       setErrorCreacion('No se pudo crear la estación. Intenta de nuevo.')

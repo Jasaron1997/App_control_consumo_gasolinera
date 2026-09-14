@@ -13,7 +13,8 @@ public class CrearCargaRequest
 
     public int? EstacionServicioId { get; set; }
 
-    // Opcional: si no viene, el Service usa la fecha actual (UTC).
+    // Opcional: si no viene, el Service usa la fecha-calendario local de hoy (sin hora),
+    // no el instante UTC — ver CargaService.CrearAsync.
     public DateTime? Fecha { get; set; }
 
     [Required]
