@@ -202,7 +202,7 @@ export default function FormularioCarga({ vehiculos, tiposCombustible, onGuardar
         </button>
 
         {onCancelar && (
-          <button type="button" onClick={onCancelar} disabled={guardando}>
+          <button type="button" className="boton-secundario" onClick={onCancelar} disabled={guardando}>
             Cancelar
           </button>
         )}

@@ -130,12 +130,18 @@ export default function Historial() {
                 <td>Q{carga.costoTotal.toFixed(2)}</td>
                 <td>{carga.precioPorGalon?.toFixed(2) ?? '—'}</td>
                 <td>
-                  <button type="button" onClick={() => setCargaEditando(carga)}>
-                    Editar
-                  </button>
-                  <button type="button" onClick={() => manejarEliminar(carga.id)}>
-                    Eliminar
-                  </button>
+                  <div className="tabla-historial__acciones">
+                    <button type="button" onClick={() => setCargaEditando(carga)}>
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="boton-peligro"
+                      onClick={() => manejarEliminar(carga.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

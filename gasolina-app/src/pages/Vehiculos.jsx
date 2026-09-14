@@ -90,7 +90,7 @@ export default function Vehiculos() {
               <span> · {vehiculo.tipoVehiculoNombre} · {vehiculo.tipoCombustibleNombre}</span>
               {vehiculo.placa && <span> · {vehiculo.placa}</span>}
             </div>
-            <button type="button" onClick={() => manejarEliminar(vehiculo.id)}>
+            <button type="button" className="boton-peligro" onClick={() => manejarEliminar(vehiculo.id)}>
               Eliminar
             </button>
           </li>

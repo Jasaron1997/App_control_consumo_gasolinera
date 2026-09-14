@@ -96,6 +96,25 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.boton-secundario {
+  background: transparent;
+  border: 1px solid var(--color-borde);
+  color: var(--color-texto-sutil);
+}
+
+/* Mismo rojo que .mensaje-error: acciones destructivas (Eliminar), a
+   diferencia de .boton-secundario que es para acciones neutras (Cancelar). */
+.boton-peligro {
+  background: transparent;
+  border: 1px solid #dc2626;
+  color: #dc2626;
+}
+
+.boton-peligro:hover {
+  background: #dc2626;
+  color: white;
+}
+
 .mensaje-error {
   color: #dc2626;
   font-size: 0.9rem;
@@ -168,6 +187,11 @@ button:disabled {
   padding: 20px;
 }
 
+.formulario-carga__acciones {
+  display: flex;
+  gap: 8px;
+}
+
 .selector-estacion {
   position: relative;
 }
@@ -216,6 +240,11 @@ button:disabled {
   text-align: left;
   border-bottom: 1px solid var(--color-borde);
   font-size: 0.9rem;
+}
+
+.tabla-historial__acciones {
+  display: flex;
+  gap: 8px;
 }
 
 .lista-vehiculos {
