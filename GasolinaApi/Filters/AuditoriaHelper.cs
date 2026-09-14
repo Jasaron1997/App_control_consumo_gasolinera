@@ -44,8 +44,11 @@ internal static class AuditoriaHelper
     // Los 3 puntos que escriben en TB_LOG_AUDITORIA (AuditoriaActionFilter,
     // ValidacionModeloResponseFactory, ValidarTokenVersionFilter) armaban el mismo
     // LogAuditoria de 7 campos por separado; se centraliza aquí para no repetir ese
-    // esqueleto. idRegistro/parametros quedan opcionales porque solo AuditoriaActionFilter
-    // (el único que corre sobre una acción ya bindeada, con argumentos y resultado) los usa.
+    // esqueleto. idRegistro/parametros quedan opcionales porque ValidarTokenVersionFilter
+    // (que corre antes de que la acción bindee argumentos o produzca un resultado) no
+    // tiene ninguno de los dos que pasar; ValidacionModeloResponseFactory sí pasa
+    // parametros (lo que el cliente intentó enviar), solo AuditoriaActionFilter pasa
+    // ambos.
     public static LogAuditoria CrearLog(HttpContext httpContext, ControllerActionDescriptor? descriptor,
         int? usuarioId, bool exitoso, string? mensajeError, string? idRegistro = null, string? parametros = null) =>
         new()
